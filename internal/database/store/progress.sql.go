@@ -25,6 +25,25 @@ func (q *Queries) GetProgress(ctx context.Context, arg GetProgressParams) (int32
 	return page, err
 }
 
+const importProgress = `-- name: ImportProgress :execrows
+INSERT INTO reading_progress (user_id, chapter_id, page) VALUES ($1,$2,$3)
+ON CONFLICT(user_id,chapter_id) DO NOTHING
+`
+
+type ImportProgressParams struct {
+	UserID    int64
+	ChapterID int64
+	Page      int32
+}
+
+func (q *Queries) ImportProgress(ctx context.Context, arg ImportProgressParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importProgress, arg.UserID, arg.ChapterID, arg.Page)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const saveProgress = `-- name: SaveProgress :exec
 INSERT INTO reading_progress (user_id, chapter_id, page) VALUES ($1,$2,$3)
 ON CONFLICT(user_id,chapter_id) DO UPDATE SET page = EXCLUDED.page, updated_at = now()

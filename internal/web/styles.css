@@ -1,7 +1,8 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @source "./*.templ";
 
 @theme { --color-paper:#f5f6fb; --color-ink:#1c2444; --color-indigo:#3730a3; --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+@layer components { .account-import{max-width:640px;margin-top:36px;padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}.account-import h2{font-size:1.25rem}.account-import p{margin-block:12px;color:var(--muted)}.account-import .button{margin-top:8px} }
 @layer base {
  :root { color-scheme:light dark; --paper:#f5f6fb; --surface:#fff; --ink:#1c2444; --muted:#56617a; --accent:#3730a3; --line:#d8ddea; --soft:#e9eaf8; --coral:#fd927b; }
  @media(prefers-color-scheme:dark){:root{--paper:#121627;--surface:#1b2136;--ink:#f0f2ff;--muted:#afb8d1;--accent:#a7a9ff;--line:#39425e;--soft:#272d49}}
@@ -12,4 +13,51 @@
  @media(max-width:1000px){.shelf-hero{margin-inline:24px}.hero-copy{padding:48px 0 48px 32px}.hero-art:before{width:330px;height:330px;left:0;top:65px}.hero-cover{top:135px}.cover-front{top:100px}.cover-left,.cover-right{top:140px}.auth-main{gap:40px;grid-template-columns:1fr 380px}.series-intro{gap:36px;grid-template-columns:250px 1fr}.detail-cover{width:250px}.wrap{padding-inline:28px}.reader-controls-inner{gap:12px}}
  @media(max-width:700px){.site-header{min-height:78px;padding:16px 20px;gap:12px;flex-wrap:wrap}.wordmark{font-size:1.5rem}.wordmark img{width:27px}.site-header nav{gap:14px;font-size:.7rem}.site-header nav a:last-child{padding:5px 10px}.shelf-hero{grid-template-columns:1fr;margin:4px 16px 0;border-radius:20px}.hero-copy{padding:36px 28px 0}.hero-copy h1{font-size:2.8rem}.hero-copy>p:not(.eyebrow){max-width:35ch;font-size:.85rem}.hero-art{min-height:310px;max-width:400px;width:100%;margin:auto}.hero-art:before{width:270px;height:270px;top:15px;left:60px}.hero-cover{top:45px;width:28%}.cover-front{top:22px;width:34%;left:33%}.cover-left{left:15%;top:54px}.cover-right{right:10%;top:54px}.shelf-label{bottom:20px;left:24%;font-size:.5rem}.wrap{padding-inline:20px}.collection{padding-top:40px;padding-bottom:32px}.section-heading{display:block}.section-heading>p{margin-top:14px}.section-heading h2{font-size:1.8rem}.catalog-search{flex-wrap:wrap;padding:16px;gap:12px}.search-field{flex-basis:100%}.catalog-search>div:nth-child(2){flex:1;min-width:0}.catalog-search select{min-width:0;width:100%;font-size:.8rem}.catalog-search .button{padding-inline:16px}.cover-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 16px}.series-card h3{font-size:1.08rem}.card-meta{flex-direction:column;font-size:.55rem;gap:3px;margin-top:13px}.card-synopsis{font-size:.74rem}.cover-cta{display:none}.reading-note{flex-wrap:wrap;gap:12px;margin-block:20px 40px}.reading-note>span{display:none}.reading-note>a{margin-left:0}.reading-note h2{font-size:1.2rem}.site-footer{flex-wrap:wrap;gap:12px;padding:28px 20px}.site-footer p:last-child{margin-left:0;width:100%}.series-intro{grid-template-columns:1fr;gap:28px}.detail-cover{width:180px}.series-intro h1{font-size:2.6rem}.series-intro .synopsis{font-size:.95rem;margin-block:18px}.series-tabs{margin-top:36px}.chapter-row{gap:14px;padding:18px}.chapter-row>span:last-child{font-size:.7rem}.chapter-row strong{font-size:.85rem}.auth-main{grid-template-columns:1fr;gap:36px;padding-block:36px}.auth-copy h1{font-size:2.6rem}.auth-card{padding:24px}.account-main{padding-block:36px}.account-main>form{display:block;margin:16px 0 0}.reader-controls-inner{flex-wrap:wrap;padding:10px 16px;gap:8px}.reader-controls-inner>div:first-child{width:100%}.reader-controls-inner>div:first-child label{display:inline-block;margin-right:10px}.reader-controls-inner>div:first-child select{display:inline-block;min-height:40px;padding:7px}.reader-controls-inner .page-navigation{flex:1}.reader-controls-inner .page-navigation select{min-width:0;padding-inline:6px;flex:1}.save-status{font-size:.6rem;max-width:95px}.page-navigation .button{min-height:44px;padding:8px 12px}.reader-hint{font-size:.62rem}.reader-heading h1{font-size:1.05rem}.reader-pages figure{scroll-margin-top:170px}}
  @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+}
+
+@layer components {
+ .mangadex-promo{max-width:1240px;margin:24px auto 64px;padding:36px 40px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}
+ .mangadex-promo h2,.mangadex-main h1{margin-top:12px}
+ .mangadex-promo>div>p:not(.eyebrow){max-width:68ch;margin-top:14px;color:var(--muted);font-size:.86rem}
+ .mangadex-promo .catalog-search{margin-top:24px;padding:0;border:0;background:transparent}
+ .mangadex-quick-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:16px;font-size:.76rem}
+ .mangadex-quick-links>span{color:var(--muted)}
+ .mangadex-quick-links a{color:var(--accent);font-weight:650}
+ .mangadex-policy-note{max-width:75ch;margin-top:20px;padding:14px 18px;border-left:3px solid var(--accent);border-radius:0 10px 10px 0;background:var(--soft);color:var(--muted);font-size:.76rem}
+ .mangadex-main{padding-block:24px 64px}
+ .mangadex-main>.eyebrow{margin-top:10px;color:var(--accent)}
+ .mangadex-search{margin-top:28px}
+ .mangadex-results{display:grid;gap:14px}
+ .mangadex-result{padding:24px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+ .mangadex-result>.eyebrow{color:var(--muted)}
+ .mangadex-result h2{margin-top:8px;font-size:1.35rem}
+ .mangadex-result>p:not(.eyebrow){display:-webkit-box;max-width:80ch;margin-top:12px;overflow:hidden;color:var(--muted);font-size:.82rem;-webkit-box-orient:vertical;-webkit-line-clamp:3}
+ .source-link{display:inline-block;margin-top:14px;color:var(--accent);font-size:.76rem;font-weight:700}
+ .mangadex-pagination{display:flex;justify-content:space-between;gap:16px;margin-top:24px}
+ .mangadex-series-intro{padding-block:20px 36px}
+ .mangadex-series-intro>.eyebrow{color:var(--accent)}
+ .mangadex-description{max-width:76ch;margin-top:20px;white-space:pre-line;color:var(--muted)}
+ .mangadex-chapters{padding-block:20px 36px}
+ .mangadex-chapter-list{display:grid;gap:12px}
+ .mangadex-chapter{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px 24px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+ .mangadex-chapter .eyebrow{color:var(--accent)}
+ .mangadex-chapter h3{margin-top:5px;font-size:1rem}
+ .chapter-credit{margin-top:8px;color:var(--muted);font-size:.72rem}
+ .chapter-credit a{color:var(--ink);font-weight:650}
+ .mangadex-removal-note{max-width:80ch;margin:24px 0;color:var(--muted);font-size:.72rem}
+ .verification-check{display:flex;align-items:center;gap:9px;margin-top:16px!important;font-weight:500!important}
+ .verification-check input{width:18px;min-height:18px;margin:0}
+ .removal-list{margin-top:16px}
+ .removal-list li{display:flex;flex-wrap:wrap;gap:8px 16px;padding-block:8px;border-top:1px solid var(--line);font-size:.75rem}
+ .removal-list span{color:var(--muted);font-family:var(--font-mono);font-size:.65rem}
+ .page-reader .reader-pages figure img{background:var(--paper)}
+ @media(max-width:700px){
+  .mangadex-promo{margin:12px 16px 36px;padding:24px 20px}
+  .mangadex-promo .catalog-search{flex-wrap:wrap}
+  .mangadex-main{padding-block:14px 40px}
+  .mangadex-result{padding:18px}
+  .mangadex-chapter{align-items:flex-start;flex-direction:column;gap:14px;padding:18px}
+  .mangadex-chapter .button{align-self:stretch}
+  .mangadex-pagination .button{flex:1;gap:8px;padding-inline:10px;font-size:.72rem}
+ }
 }

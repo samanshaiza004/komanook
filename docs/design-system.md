@@ -30,6 +30,7 @@ Tailwind CSS v4 compiles locally; the product's semantic CSS and custom tokens o
 | MannerHTML | `manner-tabs` on series pages | exclusively owns roles, selection, hidden, tabindex, keyboard focus inside it; all panels visible without JS |
 | shadcn-derived primitive | button HTML and classes | no scripts, no global listeners or mutation controller |
 | reader module | `[data-reader]` | exclusive image visibility/sources, mode and progress; never patched by Datastar |
+| account module | `[data-progress-import]` | reads only the guest progress namespace; sends a bounded import only after an explicit button action |
 | browser | native forms, details, links | preserve default validation and keyboard behavior |
 
 Load MannerHTML's tabs entry only where needed; the custom element handles connection/disconnection. Do not register the same tab with a shadcn or Datastar controller. There is no automatic MannerHTML structural mutation reconciliation; future changes must call its `refresh()` deliberately or replace the entire custom element and restore focus. Current patches avoid this entirely. Datastar search keeps focus in its persistent form; a polite live region inside results announces the result count. Browser tests assert focus and MannerHTML keyboard behavior after a Datastar patch on the series page's related-story area.

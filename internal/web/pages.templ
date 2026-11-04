@@ -2,8 +2,10 @@ package web
 
 import (
 	"fmt"
-	"komanook/internal/database/store"
 	"strconv"
+
+	"komanook/internal/database/store"
+	"komanook/internal/mangadex"
 )
 
 templ layout(title string, description string, kind string) {
@@ -26,15 +28,18 @@ templ layout(title string, description string, kind string) {
 			if kind == "reader" {
 				<script type="module" src={ asset("reader.js") }></script>
 			}
+			if kind == "account-home" {
+				<script type="module" src={ asset("account.js") }></script>
+			}
 		</head>
 		<body class={ "page-" + kind }>
 			<a class="skip-link" href="#main">Skip to content</a>
 			<header class="site-header">
 				<a class="wordmark" href="/" aria-label="Komanook home"><img src={ asset("mark.svg") } width="32" height="32" alt=""/>komanook<span class="wordmark-dot">.</span></a>
-				<nav aria-label="Main navigation"><a href="/catalog">Discover</a><a href="/account">Your reading space <span aria-hidden="true">↗</span></a></nav>
+				<nav aria-label="Main navigation"><a href="/catalog">Discover</a><a href="/mangadex">MangaDex</a><a href="/account">Your reading space <span aria-hidden="true">↗</span></a></nav>
 			</header>
 			{ children... }
-			<footer class="site-footer"><a class="wordmark" href="/">komanook.</a><p>Good stories. Room to get lost.</p><p>Original sample comics · <a href="/catalog">Explore the shelf</a></p></footer>
+			<footer class="site-footer"><a class="wordmark" href="/">komanook.</a><p>Good stories. Room to get lost.</p><p>Original sample comics · <a href="/catalog">Explore the shelf</a> · Community catalog by <a href="https://mangadex.org/">MangaDex</a></p></footer>
 		</body>
 	</html>
 }
@@ -55,6 +60,21 @@ templ catalogPage(items []store.Series, search string, genre string) {
 				<div class="section-heading"><div><p class="eyebrow">The opening shelf</p><h2 id="collection-title">Your next chapter starts here</h2></div><p>Three original short reads.<br/>Made for a quiet moment.</p></div>
 				@searchForm(search, genre)
 				@catalogResults(items)
+			</section>
+			<section class="mangadex-promo wrap" aria-labelledby="mangadex-promo-title">
+				<div><p class="eyebrow">Community translations</p><h2 id="mangadex-promo-title">Explore the MangaDex catalog</h2><p>Search community scanlations supplied live by MangaDex. Komanook shows the scanlation group credited for each chapter and does not store chapter page files.</p></div>
+				<form class="catalog-search" action="/mangadex" method="get">
+					<div class="search-field"><label for="mangadex-q">Find a MangaDex series</label><input id="mangadex-q" type="search" name="q" maxlength="100" placeholder="Demon Slayer, Jujutsu Kaisen…"/></div>@button(buttonProps{Type: "submit"}) {
+	Search MangaDex <span aria-hidden="true">↗</span>
+}
+				</form>
+				<nav class="mangadex-quick-links" aria-label="Popular MangaDex searches">
+					<span>Try a title:</span>
+					<a href="/mangadex?q=Demon%20Slayer">Demon Slayer</a>
+					<a href="/mangadex?q=Jujutsu%20Kaisen">Jujutsu Kaisen</a>
+					<a href="/mangadex?q=Kiichi%21%21">Kiichi!!</a>
+				</nav>
+				<p class="mangadex-policy-note">While MangaDex is available, Komanook stays free and ad-free across the site.</p>
 			</section>
 			<aside class="reading-note wrap"><span aria-hidden="true">↳</span><div><h2>A little less noise. A little more story.</h2><p>Read your way: an unbroken vertical strip, or one page at a time. Your place is saved on this device. Sign in to keep it across devices.</p></div><a href="/account">Make yourself at home <span aria-hidden="true">↗</span></a></aside>
 		</main>
@@ -144,12 +164,18 @@ templ loginView(token string, message string) {
 	}
 }
 
-templ accountView(u store.User, token string) {
-	@layout("Your reading space", "Your Komanook reading account.", "account") {
+templ accountView(u store.User, token string, removals []store.MangaDexGroupRemovalsRow) {
+	@layout("Your reading space", "Your Komanook reading account.", "account-home") {
 		<main id="main" class="wrap account-main">
 			<p class="eyebrow">A place to return to</p>
 			<h1>Your reading space</h1>
 			<p>Signed in as <strong>{ u.Email }</strong>. Your reading place saves across devices as you turn the pages.</p><a class="button" href="/catalog">Find your next read →</a>
+			<section class="account-import" data-progress-import data-csrf={ token } hidden aria-labelledby="import-progress-title">
+				<h2 id="import-progress-title">Bring your guest reading places?</h2>
+				<p>We found <strong data-progress-count>0 chapters</strong> saved while you were signed out. Importing fills only chapters without an existing account bookmark.</p>
+				<button class="button button-secondary" type="button" data-import-progress>Import guest reading places</button>
+				<p class="save-status" data-import-status role="status" aria-live="polite"></p>
+			</section>
 			<form method="post" action="/logout">
 				<input type="hidden" name="csrf_token" value={ token }/>
 				@button(buttonProps{Type: "submit", Secondary: true}) {
@@ -157,6 +183,24 @@ templ accountView(u store.User, token string) {
 				}
 			</form>
 			if u.Role=="admin" {
+				<details class="operator-tools" id="scanlation-removals">
+					<summary>Scanlation group removal requests</summary>
+					<p>After verifying a written request from the active leader on the group's MangaDex page, record its group ID and a request reference here. This immediately hides every chapter credited to that group.</p>
+					<form method="post" action="/admin/mangadex/group-removals">
+						<input type="hidden" name="csrf_token" value={ token }/><label for="mangadex-group-id">MangaDex scanlation group ID</label><input id="mangadex-group-id" name="group_id" type="text" maxlength="36" pattern="[0-9a-fA-F-]{36}" required/><label for="mangadex-group-name">Group name</label><input id="mangadex-group-name" name="group_name" type="text" maxlength="120" required/><label for="mangadex-request-reference">Written request reference</label><input id="mangadex-request-reference" name="request_reference" type="text" maxlength="500" placeholder="Ticket number or private request URL" required/><label class="verification-check"><input name="leader_verified" type="checkbox" required/> I verified that the written request came from the active group leader.</label>
+						@button(buttonProps{Type: "submit"}) {
+							Record request and hide chapters
+						}
+					</form>
+					if len(removals)>0 {
+						<h3>Groups currently hidden</h3>
+						<ul class="removal-list">
+							for _,removal:=range removals {
+								<li><a href={ templ.URL("https://mangadex.org/group/" + removal.GroupID) }>{ removal.GroupName }</a><span>{ removal.GroupID }</span><small>Request record: { removal.RequestReference }</small></li>
+							}
+						</ul>
+					}
+				</details>
 				<details class="operator-tools">
 					<summary>Private image processing</summary>
 					<p>Upload an authorized JPEG or PNG for normalization. Processed images stay private; this does not publish a chapter.</p>
@@ -172,9 +216,204 @@ templ accountView(u store.User, token string) {
 	}
 }
 
-templ readerView(c store.ChapterRow, pages []store.Page, token string, signedIn bool) {
+templ mangaDexSearchPage(query string, result mangadex.SearchResult, removalContact string) {
+	@layout("Community manga catalog", "Search MangaDex community scanlations. Chapter pages stay hosted by MangaDex.", "mangadex") {
+		<main id="main" class="wrap mangadex-main">
+			<a class="back-link" href="/catalog">← Back to the shelf</a>
+			<p class="eyebrow">Community catalog · MangaDex API</p>
+			<h1>Find a MangaDex series</h1>
+			<p class="mangadex-policy-note">MangaDex provides this catalog and its chapter images. Komanook remains free and ad-free while MangaDex content is available, and displays scanlation group credits.</p>
+			@mangaDexRemovalContact(removalContact)
+			<form class="catalog-search mangadex-search" action="/mangadex" method="get">
+				<div class="search-field"><label for="mangadex-search-query">Title</label><input id="mangadex-search-query" type="search" name="q" value={ query } maxlength="100" required placeholder="Search community translations"/></div>
+				@button(buttonProps{Type: "submit"}) {
+					Search <span aria-hidden="true">↗</span>
+				}
+			</form>
+			if query!="" {
+				<p class="result-count" role="status">{ fmt.Sprintf("%d MangaDex results", result.Total) }</p>
+				if len(result.Items)==0 {
+					<div class="empty"><h2>No matching series found.</h2><p>Try another title or spelling.</p></div>
+				}
+				<div class="mangadex-results">
+					for _, manga := range result.Items {
+						<article class="mangadex-result">
+							<p class="eyebrow">
+								{ manga.Status }
+								if manga.Year > 0 {
+									<span>· { strconv.Itoa(manga.Year) }</span>
+								}
+							</p>
+							<h2><a href={ templ.URL("/mangadex/manga/" + manga.ID) }>{ manga.Title }</a></h2>
+							<p>{ manga.Description }</p>
+							<a class="source-link" href={ templ.URL("https://mangadex.org/title/" + manga.ID) }>View source on MangaDex <span aria-hidden="true">↗</span></a>
+						</article>
+					}
+				</div>
+				@mangaDexSearchPagination(query, result)
+			}
+		</main>
+	}
+}
+
+templ mangaDexRemovalContact(contact string) {
+	<p class="mangadex-removal-note">
+		Active scanlation group leaders may send a written request to
+		if contact != "" {
+			<a href={ templ.URL(contact) }>the Komanook operator</a>
+		} else {
+			<span>the Komanook operator</span>
+		}
+		to remove their group's works. Verified requests hide all associated chapters.
+	</p>
+}
+
+templ mangaDexSearchPagination(query string, result mangadex.SearchResult) {
+	{{
+		previous := result.Offset - result.Limit
+		if previous < 0 {
+			previous = 0
+		}
+		next := result.Offset + result.Limit
+	}}
+	<nav class="mangadex-pagination" aria-label="MangaDex search pages">
+		if result.Offset > 0 {
+			<a class="button button-secondary" href={ templ.URL(mangaDexSearchURL(query, previous)) }>Previous results</a>
+		}
+		if result.Limit > 0 && next < result.Total {
+			<a class="button button-secondary" href={ templ.URL(mangaDexSearchURL(query, next)) }>More results</a>
+		}
+	</nav>
+}
+
+templ mangaDexMangaPage(manga mangadex.Manga, chapters []mangadex.Chapter, feed mangadex.FeedResult, removalContact string) {
+	@layout(manga.Title, manga.Description, "mangadex") {
+		<main id="main" class="wrap mangadex-main">
+			<a class="back-link" href="/mangadex">← Search MangaDex</a>
+			<section class="mangadex-series-intro">
+				<p class="eyebrow">Community scanlations · MangaDex</p>
+				<h1>{ manga.Title }</h1>
+				<p class="mangadex-description">{ manga.Description }</p>
+				<p class="mangadex-policy-note">Chapters are read from MangaDex's image network. Komanook does not store chapter pages, charge for access, or show ads.</p><a class="source-link" href={ templ.URL("https://mangadex.org/title/" + manga.ID) }>MangaDex series page <span aria-hidden="true">↗</span></a>
+			</section>
+			<section class="mangadex-chapters" aria-labelledby="mangadex-chapters-title">
+				<div class="section-heading"><div><p class="eyebrow">English translations</p><h2 id="mangadex-chapters-title">Chapters</h2></div><p>{ fmt.Sprintf("%d available on this page",len(chapters)) }</p></div>
+				if len(chapters) == 0 {
+					<div class="empty"><h3>No credited chapters are available on this page.</h3><p>Chapters without scanlation group credits and chapters from groups with recorded removal requests are hidden.</p></div>
+				}
+				<div class="mangadex-chapter-list">
+					for _, chapter := range chapters {
+						<article class="mangadex-chapter">
+							<div>
+								<p class="eyebrow">{ mangaDexChapterLabel(chapter) }</p>
+								<h3>{ chapter.Title }</h3>
+								<p class="chapter-credit">
+									Scanlation by
+									for i, group := range chapter.Groups {
+										if i > 0 {
+											<span>, </span>
+										}
+										<a href={ templ.URL("https://mangadex.org/group/" + group.ID) }>{ group.Name }</a>
+									}
+								</p>
+							</div>
+							<a class="button button-secondary" href={ templ.URL("/mangadex/read/" + chapter.ID) }>Read →</a>
+						</article>
+					}
+				</div>
+				@mangaDexChapterPagination(manga.ID, feed)
+			</section>
+			@mangaDexRemovalContact(removalContact)
+		</main>
+	}
+}
+
+templ mangaDexChapterPagination(mangaID string, feed mangadex.FeedResult) {
+	{{
+		previous := feed.Offset - feed.Limit
+		if previous < 0 {
+			previous = 0
+		}
+		next := feed.Offset + feed.Limit
+	}}
+	<nav class="mangadex-pagination" aria-label="MangaDex chapter pages">
+		if feed.Offset > 0 {
+			<a class="button button-secondary" href={ templ.URL(mangaDexMangaURL(mangaID, previous)) }>Previous chapters</a>
+		}
+		if feed.Limit > 0 && next < feed.Total {
+			<a class="button button-secondary" href={ templ.URL(mangaDexMangaURL(mangaID, next)) }>More chapters</a>
+		}
+	</nav>
+}
+
+templ mangaDexReaderView(chapter mangadex.Chapter, pages []mangadex.Page, removalContact string) {
+	{{
+		chapterTitle := mangaDexChapterLabel(chapter)
+		if chapter.Title != "" {
+			chapterTitle += " · " + chapter.Title
+		}
+		if chapter.MangaTitle == "" {
+			chapter.MangaTitle = "MangaDex chapter"
+		}
+	}}
+	@layout(chapter.MangaTitle+" — "+chapterTitle, "Community scanlation chapter provided by MangaDex.", "reader") {
+		<main id="main" data-reader data-ignore data-ignore-morph data-chapter={ "mangadex-" + chapter.ID } data-csrf="" data-signed-in="false">
+			<div class="reader-heading wrap"><a class="back-link" href={ templ.URL("/mangadex/manga/" + chapter.MangaID) }>← { chapter.MangaTitle }</a><h1>{ chapterTitle }</h1></div>
+			<div class="reader-toolbar" data-reader-controls hidden>
+				<div class="reader-controls-inner">
+					<div><label for="reading-mode">Reading mode</label><select id="reading-mode" data-mode><option value="vertical">Vertical scroll</option><option value="ltr">Pages · left to right</option><option value="rtl">Pages · right to left</option></select></div>
+					<div class="page-navigation">
+						<button type="button" class="button button-secondary" data-previous aria-label="Previous page">←</button><label class="sr-only" for="reader-page">Current page</label>
+						<select id="reader-page" data-page>
+							for i := range pages {
+								<option value={ strconv.Itoa(i + 1) }>{ fmt.Sprintf("Page %d / %d", i + 1, len(pages)) }</option>
+							}
+						</select><button type="button" class="button button-secondary" data-next aria-label="Next page">→</button>
+					</div>
+					<p class="save-status" data-save-status role="status">Your place stays on this device</p>
+				</div>
+			</div>
+			<p class="reader-hint wrap" data-reader-controls hidden>Arrow keys turn pages · Home / End jump to the first / last page</p>
+			<p class="wrap reader-hint" data-reader-fallback>Continuous reading is available without JavaScript. Enable JavaScript to change reading mode and save your place.</p>
+			<div class="reader-pages" data-pages>
+				for i, page := range pages {
+					<figure id={ fmt.Sprintf("page-%d", i+1) } data-reader-page>
+						if i == 0 {
+							<img src={ templ.URL(page.URL) } data-image data-src={ templ.URL(page.URL) } alt={ fmt.Sprintf("Page %d of %s. MangaDex does not provide an accessible transcript for this page.", i+1, chapterTitle) } fetchpriority="high" decoding="async"/>
+						} else {
+							<img src={ templ.URL(page.URL) } data-image data-src={ templ.URL(page.URL) } alt={ fmt.Sprintf("Page %d of %s. MangaDex does not provide an accessible transcript for this page.", i+1, chapterTitle) } loading="lazy" decoding="async"/>
+						}
+						<figcaption>
+							{ fmt.Sprintf("Page %d / %d · MangaDex · Scanlation by ", i + 1, len(pages)) }
+							for j, group := range chapter.Groups {
+								if j > 0 {
+									<span>, </span>
+								}
+								<a href={ templ.URL("https://mangadex.org/group/" + group.ID) }>{ group.Name }</a>
+							}
+						</figcaption>
+					</figure>
+				}
+			</div>
+			<div class="reader-end wrap"><p class="eyebrow">Community scanlation</p><h2>That’s the end of this chapter.</h2><p>These images are delivered by MangaDex and are not stored by Komanook.</p><p class="fine-print">Free access · No ads · No paid access</p>@mangaDexRemovalContact(removalContact)<a class="button" href={ templ.URL("/mangadex/manga/" + chapter.MangaID) }>Back to { chapter.MangaTitle } →</a><p class="fine-print">Catalog and chapter data by <a href="https://mangadex.org/">MangaDex</a>.</p></div>
+			<p class="sr-only" aria-live="polite" aria-atomic="true" data-page-announcement></p>
+		</main>
+	}
+}
+
+func mangaDexChapterLabel(chapter mangadex.Chapter) string {
+	if chapter.Number == "" {
+		return "Oneshot"
+	}
+	if chapter.Volume != "" {
+		return "Volume " + chapter.Volume + " · Chapter " + chapter.Number
+	}
+	return "Chapter " + chapter.Number
+}
+
+templ readerView(c store.ChapterRow, pages []store.Page, token string, userID int64) {
 	@layout(c.SeriesTitle+" — "+c.Title, "Read "+c.Title+", an original Komanook comic.", "reader") {
-		<main id="main" data-reader data-ignore data-ignore-morph data-chapter={ strconv.FormatInt(c.ID, 10) } data-csrf={ token } data-signed-in={ strconv.FormatBool(signedIn) }>
+		<main id="main" data-reader data-ignore data-ignore-morph data-chapter={ strconv.FormatInt(c.ID, 10) } data-csrf={ token } data-signed-in={ strconv.FormatBool(userID > 0) } data-account-key={ strconv.FormatInt(userID, 36) }>
 			<div class="reader-heading wrap"><a class="back-link" href={ templ.URL("/series/" + c.SeriesSlug) }>← { c.SeriesTitle }</a><h1>{ fmt.Sprintf("Chapter %d · %s",c.Number,c.Title) }</h1></div>
 			<div class="reader-toolbar" data-reader-controls hidden>
 				<div class="reader-controls-inner">

@@ -1,6 +1,6 @@
 # Komanook
 
-A small Go foundation for an independent manga, manhwa and webcomic reading platform. Server-rendered catalog and series pages, an independent reader, real PostgreSQL account progress, invitation-only login, and private image normalization. No scraping, SPA, Redis or hosted identity service is required to run the slice.
+A small Go foundation for an independent manga, manhwa and webcomic reading platform. Server-rendered catalog and series pages, an independent reader, real PostgreSQL account progress, invitation-only login, private image normalization, and a MangaDex API read-through for community scanlations. Komanook does not scrape or store MangaDex chapter images. No SPA, Redis or hosted identity service is required to run the slice.
 
 ![Komanook catalog](docs/screenshots/desktop-catalog.png)
 
@@ -20,7 +20,13 @@ Open [Komanook locally](http://localhost:8080). The helper initializes a persist
 | `reader@komanook.test` | `a quiet place to read` | Read and save personal progress |
 | `operator@komanook.test` | `a quiet place to work` | Also submit private image-processing jobs |
 
-These accounts exist only because the local helper explicitly provisions them. The production app has no built-in accounts or passwords. Restarting the local helper resets fixture passwords and revokes their previous sessions. Read all samples without signing in; guest progress stays on the device when storage is available.
+These accounts exist only because the local helper explicitly provisions them. The production app has no built-in accounts or passwords. Restarting the local helper resets fixture passwords and revokes their previous sessions. Read all samples without signing in; guest progress stays in a separate device namespace. Signed-in progress has its own per-account device namespace and is also saved to PostgreSQL. On the account page, you can explicitly import guest bookmarks; existing account bookmarks are kept.
+
+## MangaDex community chapters
+
+Use the separate MangaDex search from the catalog to browse its community scanlation data. MangaDex chapter images are served from MangaDex@Home when a reader opens a chapter; Komanook does not copy or persist those image files. Each chapter page credits MangaDex and its scanlation group. The MangaDex API client uses a request cap and short-lived in-memory delivery metadata cache; it does not retry rate-limited requests.
+
+MangaDex's [API acceptable-use policy](https://api.mangadex.org/docs/redoc.html#section/Acceptable-use-policy) requires credit to MangaDex and scanlation groups, honoring written removal requests from active group leaders, and no ads or paid services anywhere on the website or app while its API is used. Komanook stays free and ad-free while the MangaDex read-through is active. Set `MANGADEX_REMOVAL_CONTACT` to a written contact route (a `mailto:` address or HTTPS URL) before production; production startup fails without it. After verifying a written request against the group's active MangaDex page, an administrator can record the group ID and request reference under **Your reading space → Scanlation group removal requests**; chapter lists and reader routes then hide all chapters associated with that group.
 
 ## Use an existing PostgreSQL or Docker
 
@@ -52,7 +58,7 @@ npx playwright install chromium
 npm run test:local         # isolated real PostgreSQL + race + desktop/mobile + benchmark
 ```
 
-Stop `dev:local` before `test:local`. The test helper uses PostgreSQL port 54330 and app port 8080, creates a temporary cluster, and removes it on exit. Chromium installation is separate and pinned to the Playwright lockfile. Docker is optional for local verification. CI uses a PostgreSQL service and also validates the container build.
+Stop `dev:local` before `test:local`, or set `KOMANOOK_TEST_HTTP_PORT=8081` to run the isolated test app beside it. The test helper uses PostgreSQL port 54330, creates a temporary cluster, and removes it on exit. Chromium installation is separate and pinned to the Playwright lockfile. Docker is optional for local verification. CI uses a PostgreSQL service and also validates the container build. Tailwind scans only explicitly registered template sources, so the committed CSS can be regenerated identically across operating systems.
 
 With a running seeded app and your own test database:
 
@@ -63,7 +69,7 @@ npm run test:browser
 npm run bench
 ```
 
-The test role needs CREATEDB: tests create/drop isolated, randomly named `komanook_test_*` databases. **Without `TEST_DATABASE_URL`, real database tests skip explicitly**; this is not full verification. Browser checks cover desktop/mobile widths, keyboard LTR/RTL, vertical progress, account restoration, blocked storage, failed sync, native no-JS paths, MannerHTML after Datastar patches, and automated axe checks. Integration tests cover session renewal/revocation/expiry, role checks, CSRF, escaping, transaction rollback and storage failures. Raw measurements, method and limits are in [docs/performance.md](docs/performance.md).
+The test role needs CREATEDB: tests create/drop isolated, randomly named `komanook_test_*` databases. **Without `TEST_DATABASE_URL`, real database tests skip explicitly**; this is not full verification. Browser checks cover desktop/mobile widths, keyboard LTR/RTL, vertical progress, guest/account isolation and import, blocked storage, failed sync, a 250-page reader fixture, native no-JS paths, MannerHTML after Datastar patches, and automated axe checks. Integration tests cover session renewal/revocation/expiry, role checks, CSRF, escaping, non-overwriting transactional import, rollback and storage failures. Raw measurements, method and limits are in [docs/performance.md](docs/performance.md).
 
 ## Production build and deployment
 
@@ -76,6 +82,7 @@ docker build -t komanook:foundation .
 The Dockerfile pins build/runtime image digests, produces a static binary, runs as UID 65532, and includes third-party notices. Deploy one app container and PostgreSQL behind a TLS reverse proxy. Configure:
 
 - `APP_ENV=production`, `HTTP_ADDR=0.0.0.0:8080`, `BASE_URL=https://your-domain`.
+- `MANGADEX_REMOVAL_CONTACT=mailto:you@your-domain` or an HTTPS contact page, so active scanlation group leaders have a written removal route.
 - `DATABASE_URL` with `sslmode=verify-full` and the provider's trusted CA (`sslrootcert` when needed). Use separate migration/operator and least-privilege runtime credentials.
 - `MEDIA_DIR=/var/lib/komanook` on a private persistent volume writable by UID 65532. It is never served publicly. Start with a memory limit around 512 MiB and observe actual worker peaks; two bounded image workers share the process.
 
@@ -83,7 +90,7 @@ Run the image once with command `migrate` before starting `serve`, using release
 
 Login IP budgets use the direct peer address and ignore forwarding headers. Behind one proxy, that is a shared budget; configure edge abuse control before a public pilot and introduce trusted-proxy IP handling only with explicit trust configuration. Do not trust arbitrary client IP headers.
 
-The private admin upload action returns a job ID and status URL. Poll `GET /admin/uploads/{id}` while signed in as an administrator. Input is quarantined and validated; River transactionally schedules bounded JPEG/PNG normalization and records private derivatives. There is no automatic public image URL or chapter publication endpoint. Remove abandoned quarantine files only after reconciling upload/job state; add a retention task before sustained ingestion. A real R2 adapter, atomic chapter assembly/publication, rights revocation/purge, and public account lifecycle are prioritized next.
+The private admin upload action returns a job ID and status URL. Poll `GET /admin/uploads/{id}` while signed in as an administrator. Input is quarantined and validated; River transactionally schedules bounded JPEG/PNG normalization and records private derivatives. There is no automatic public image URL or local chapter publication endpoint. Remove abandoned quarantine files only after reconciling upload/job state; add a retention task before sustained ingestion. A real R2 adapter, atomic local chapter assembly/publication, rights revocation/purge, and public account lifecycle are prioritized next.
 
 ## Decisions, provenance and limits
 

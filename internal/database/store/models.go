@@ -22,6 +22,14 @@ type LoginLimit struct {
 	ExpiresAt pgtype.Timestamptz
 }
 
+type MangadexGroupRemoval struct {
+	GroupID          string
+	GroupName        string
+	RequestReference string
+	CreatedBy        int64
+	CreatedAt        pgtype.Timestamptz
+}
+
 type Page struct {
 	ChapterID  int64
 	Number     int32

@@ -86,7 +86,7 @@ func Ready(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := pool.QueryRow(ctx, "SELECT version, dirty FROM schema_migrations").Scan(&version, &dirty); err != nil {
 		return err
 	}
-	if version != 1 || dirty {
+	if version != 2 || dirty {
 		return errors.New("application migrations required")
 	}
 	m, err := rivermigrate.New(riverpgxv5.New(pool), nil)

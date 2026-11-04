@@ -12,7 +12,8 @@ func TestConfigurationBoundaries(t *testing.T) {
 		{"missing database", map[string]string{}, false},
 		{"invalid environment", map[string]string{"APP_ENV": "prod", "DATABASE_URL": "postgres://localhost/k"}, false},
 		{"origin path", map[string]string{"BASE_URL": "https://read.example/path", "DATABASE_URL": "postgres://localhost/k"}, false},
-		{"production TLS", map[string]string{"APP_ENV": "production", "BASE_URL": "https://read.example", "DATABASE_URL": "postgres://db/k?sslmode=verify-full"}, true},
+		{"production TLS", map[string]string{"APP_ENV": "production", "BASE_URL": "https://read.example", "DATABASE_URL": "postgres://db/k?sslmode=verify-full", "MANGADEX_REMOVAL_CONTACT": "mailto:operator@example.test"}, true},
+		{"production requires MangaDex contact", map[string]string{"APP_ENV": "production", "BASE_URL": "https://read.example", "DATABASE_URL": "postgres://db/k?sslmode=verify-full"}, false},
 		{"insecure production", map[string]string{"APP_ENV": "production", "BASE_URL": "http://read.example", "DATABASE_URL": "postgres://db/k?sslmode=disable"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

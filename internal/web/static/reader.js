@@ -16,7 +16,10 @@ async function startReader(root) {
   const chapter = root.dataset.chapter;
   const endpoint = `/api/progress/${encodeURIComponent(chapter)}`;
   const signedIn = root.dataset.signedIn === "true";
-  const storageKey = "komanook.progress.v1";
+  const guestStorageKey = "komanook.progress.guest.v1";
+  const storageKey = signedIn
+    ? `komanook.progress.account.${root.dataset.accountKey}.v1`
+    : guestStorageKey;
   const modeKey = "komanook.reader-mode.v1";
   let current = 0;
   let mode = "vertical";
@@ -52,8 +55,8 @@ async function startReader(root) {
           Number.isFinite(value.at),
       );
       entries.sort((a, b) => b[1].at - a[1].at);
+      entries.unshift([chapter, { page, at: Date.now() }]);
       const data = Object.fromEntries(entries.slice(0, 99));
-      data[chapter] = { page, at: Date.now() };
       localStorage.setItem(storageKey, JSON.stringify(data));
       localAvailable = true;
     } catch {

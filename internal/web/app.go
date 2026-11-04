@@ -28,6 +28,7 @@ import (
 	"komanook/internal/config"
 	"komanook/internal/database"
 	"komanook/internal/database/store"
+	"komanook/internal/mangadex"
 	"komanook/internal/media"
 )
 
@@ -37,6 +38,7 @@ type App struct {
 	Q         *store.Queries
 	Sessions  *scs.SessionManager
 	Media     *media.Service
+	MangaDex  *mangadex.Client
 	Log       *slog.Logger
 	verifiers chan struct{}
 }
@@ -55,7 +57,7 @@ func New(c config.Config, p *pgxpool.Pool, m *media.Service, logger *slog.Logger
 	s.Cookie.Secure = c.Production()
 	s.Cookie.SameSite = http.SameSiteLaxMode
 	s.Cookie.Persist = true
-	a := &App{Config: c, Pool: p, Q: store.New(p), Sessions: s, Media: m, Log: logger, verifiers: make(chan struct{}, 4)}
+	a := &App{Config: c, Pool: p, Q: store.New(p), Sessions: s, Media: m, MangaDex: mangadex.NewClient(nil), Log: logger, verifiers: make(chan struct{}, 4)}
 	s.ErrorFunc = func(w http.ResponseWriter, r *http.Request, err error) { a.failure(w, r, err) }
 	return a
 }
@@ -76,6 +78,9 @@ func (a *App) Handler() http.Handler {
 	public.HandleFunc("GET /{$}", a.catalog)
 	public.HandleFunc("GET /catalog", a.catalog)
 	public.HandleFunc("GET /series/{slug}", a.series)
+	public.HandleFunc("GET /mangadex", a.mangaDexSearch)
+	public.HandleFunc("GET /mangadex/manga/{id}", a.mangaDexManga)
+	public.HandleFunc("GET /mangadex/read/{id}", a.mangaDexRead)
 	private := http.NewServeMux()
 	private.HandleFunc("GET /login", a.loginPage)
 	private.HandleFunc("POST /login", a.login)
@@ -84,8 +89,10 @@ func (a *App) Handler() http.Handler {
 	private.HandleFunc("GET /read/{chapter}", a.reader)
 	private.HandleFunc("GET /api/progress/{chapter}", a.getProgress)
 	private.HandleFunc("POST /api/progress/{chapter}", a.saveProgress)
+	private.HandleFunc("POST /api/progress/import", a.importProgress)
 	private.HandleFunc("POST /admin/uploads", a.upload)
 	private.HandleFunc("GET /admin/uploads/{id}", a.uploadStatus)
+	private.HandleFunc("POST /admin/mangadex/group-removals", a.addMangaDexGroupRemoval)
 	csrf := nosurf.New(a.Sessions.LoadAndSave(private))
 	csrf.SetBaseCookie(http.Cookie{Name: a.csrfName(), Path: "/", HttpOnly: true, Secure: a.Config.Production(), SameSite: http.SameSiteLaxMode, MaxAge: 86400})
 	csrf.SetIsTLSFunc(func(*http.Request) bool { return a.Config.Production() })
@@ -270,7 +277,16 @@ func (a *App) account(w http.ResponseWriter, r *http.Request) {
 		a.failure(w, r, err)
 		return
 	}
-	a.render(w, r, accountView(u, nosurf.Token(r)))
+	var removals []store.MangaDexGroupRemovalsRow
+	if u.Role == "admin" {
+		var err error
+		removals, err = a.Q.MangaDexGroupRemovals(r.Context())
+		if err != nil {
+			a.failure(w, r, err)
+			return
+		}
+	}
+	a.render(w, r, accountView(u, nosurf.Token(r), removals))
 }
 
 func chapterID(r *http.Request) (int64, error) {
@@ -309,7 +325,7 @@ func (a *App) reader(w http.ResponseWriter, r *http.Request) {
 		a.failure(w, r, err)
 		return
 	}
-	a.render(w, r, readerView(c, pages, nosurf.Token(r), u.ID > 0))
+	a.render(w, r, readerView(c, pages, nosurf.Token(r), u.ID))
 }
 func (a *App) getProgress(w http.ResponseWriter, r *http.Request) {
 	u, ok := a.requireUser(w, r)
@@ -387,6 +403,99 @@ func (a *App) saveProgress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+const maxProgressImportItems = 99
+
+type progressImportItem struct {
+	ChapterID int64 `json:"chapter"`
+	Page      int32 `json:"page"`
+}
+
+func (a *App) importProgress(w http.ResponseWriter, r *http.Request) {
+	u, ok := a.requireUser(w, r)
+	if !ok {
+		return
+	}
+	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		http.Error(w, "Use JSON.", http.StatusUnsupportedMediaType)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
+	var body struct {
+		Items []progressImportItem `json:"items"`
+	}
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(&body); err != nil || len(body.Items) == 0 || len(body.Items) > maxProgressImportItems {
+		http.Error(w, "Invalid progress import.", http.StatusBadRequest)
+		return
+	}
+	var extra any
+	if d.Decode(&extra) != io.EOF {
+		http.Error(w, "Invalid JSON.", http.StatusBadRequest)
+		return
+	}
+
+	seen := make(map[int64]struct{}, len(body.Items))
+	for _, item := range body.Items {
+		if item.ChapterID < 1 || item.Page < 1 {
+			http.Error(w, "Invalid progress import.", http.StatusBadRequest)
+			return
+		}
+		if _, duplicate := seen[item.ChapterID]; duplicate {
+			http.Error(w, "Duplicate chapter in progress import.", http.StatusBadRequest)
+			return
+		}
+		seen[item.ChapterID] = struct{}{}
+	}
+
+	tx, err := a.Pool.Begin(r.Context())
+	if err != nil {
+		a.failure(w, r, err)
+		return
+	}
+	defer func() { _ = tx.Rollback(r.Context()) }()
+	q := a.Q.WithTx(tx)
+	for _, item := range body.Items {
+		if _, err = q.Chapter(r.Context(), item.ChapterID); errors.Is(err, pgx.ErrNoRows) {
+			http.NotFound(w, r)
+			return
+		} else if err != nil {
+			a.failure(w, r, err)
+			return
+		}
+		pages, pageErr := q.Pages(r.Context(), item.ChapterID)
+		if pageErr != nil {
+			a.failure(w, r, pageErr)
+			return
+		}
+		if int(item.Page) > len(pages) {
+			http.Error(w, "Page is outside this chapter.", http.StatusBadRequest)
+			return
+		}
+	}
+
+	imported := int32(0)
+	for _, item := range body.Items {
+		count, importErr := q.ImportProgress(r.Context(), store.ImportProgressParams{
+			UserID: u.ID, ChapterID: item.ChapterID, Page: item.Page,
+		})
+		if importErr != nil {
+			a.failure(w, r, importErr)
+			return
+		}
+		imported += int32(count)
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		a.failure(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]int32{
+		"imported": imported,
+		"existing": int32(len(body.Items)) - imported,
+	})
 }
 func (a *App) upload(w http.ResponseWriter, r *http.Request) {
 	u, ok := a.requireUser(w, r)

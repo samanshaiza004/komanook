@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 	"komanook/internal/auth"
 	"komanook/internal/config"
 	"komanook/internal/database/store"
+	"komanook/internal/mangadex"
 	"komanook/internal/media"
 	"komanook/internal/testutil"
 )
@@ -94,6 +96,16 @@ func checkStatus(t *testing.T, r result, want int) {
 	}
 }
 
+type mangaDexRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f mangaDexRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
+
+func mangaDexFixtureResponse(status int, body string) *http.Response {
+	return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}
+}
+
 func TestHTTPFoundation(t *testing.T) {
 	p := testutil.Database(t)
 	ctx := context.Background()
@@ -102,8 +114,8 @@ func TestHTTPFoundation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, address := range []string{"reader@example.test", "other@example.test"} {
-		if _, err = q.ProvisionUser(ctx, store.ProvisionUserParams{Email: address, PasswordHash: hash, Role: "reader"}); err != nil {
+	for _, account := range []struct{ email, role string }{{"reader@example.test", "reader"}, {"other@example.test", "reader"}, {"operator@example.test", "admin"}} {
+		if _, err = q.ProvisionUser(ctx, store.ProvisionUserParams{Email: account.email, PasswordHash: hash, Role: account.role}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -113,7 +125,26 @@ func TestHTTPFoundation(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := httptest.NewUnstartedServer(nil)
-	a := New(config.Config{Env: "test", BaseURL: "http://" + s.Listener.Addr().String()}, p, m, logger)
+	a := New(config.Config{Env: "test", BaseURL: "http://" + s.Listener.Addr().String(), MangaDexRemovalContact: "mailto:operator@example.test"}, p, m, logger)
+	const mangaID = "11111111-1111-4111-8111-111111111111"
+	const externalChapterID = "22222222-2222-4222-8222-222222222222"
+	const groupID = "33333333-3333-4333-8333-333333333333"
+	a.MangaDex = mangadex.NewClient(&http.Client{Transport: mangaDexRoundTripper(func(request *http.Request) (*http.Response, error) {
+		switch request.URL.Path {
+		case "/manga":
+			return mangaDexFixtureResponse(http.StatusOK, `{"limit":10,"offset":0,"total":1,"data":[{"id":"`+mangaID+`","type":"manga","attributes":{"title":{"en":"Community Story"},"description":{"en":"A test series."},"status":"completed","contentRating":"safe"}}]}`), nil
+		case "/manga/" + mangaID:
+			return mangaDexFixtureResponse(http.StatusOK, `{"data":{"id":"`+mangaID+`","type":"manga","attributes":{"title":{"en":"Community Story"},"description":{"en":"A test series."},"status":"completed","contentRating":"safe"}}}`), nil
+		case "/manga/" + mangaID + "/feed":
+			return mangaDexFixtureResponse(http.StatusOK, `{"limit":50,"offset":0,"total":1,"data":[{"id":"`+externalChapterID+`","type":"chapter","attributes":{"chapter":"1","title":"First Chapter","translatedLanguage":"en","pages":1},"relationships":[{"id":"`+mangaID+`","type":"manga"},{"id":"`+groupID+`","type":"scanlation_group"}]}],"included":[{"id":"`+groupID+`","type":"scanlation_group","attributes":{"name":"Trusted Group"}}]}`), nil
+		case "/chapter/" + externalChapterID:
+			return mangaDexFixtureResponse(http.StatusOK, `{"data":{"id":"`+externalChapterID+`","type":"chapter","attributes":{"chapter":"1","title":"First Chapter","translatedLanguage":"en","pages":1},"relationships":[{"id":"`+mangaID+`","type":"manga"},{"id":"`+groupID+`","type":"scanlation_group"}]},"included":[{"id":"`+mangaID+`","type":"manga","attributes":{"title":{"en":"Community Story"}}},{"id":"`+groupID+`","type":"scanlation_group","attributes":{"name":"Trusted Group"}}]}`), nil
+		case "/at-home/server/" + externalChapterID:
+			return mangaDexFixtureResponse(http.StatusOK, `{"baseUrl":"https://uploads.mangadex.org","chapter":{"hash":"0123456789abcdef0123456789abcdef","dataSaver":["1-page.jpg"]}}`), nil
+		default:
+			return nil, errors.New("unexpected MangaDex fixture request")
+		}
+	})})
 	s.Config.Handler = a.Handler()
 	s.Start()
 	defer s.Close()
@@ -139,6 +170,40 @@ func TestHTTPFoundation(t *testing.T) {
 			t.Fatal("patch cache variant missing")
 		}
 	})
+	t.Run("MangaDex credits chapters and honors recorded group removals", func(t *testing.T) {
+		search := c.get("/mangadex?q=Community+Story")
+		checkStatus(t, search, 200)
+		if search.header.Get("Set-Cookie") != "" || !strings.Contains(search.header.Get("Cache-Control"), "no-store") || !strings.Contains(search.body, "Community Story") || !strings.Contains(search.body, `href="mailto:operator@example.test"`) {
+			t.Fatal("MangaDex search is missing attribution, removal route, or private caching headers")
+		}
+		series := c.get("/mangadex/manga/" + mangaID)
+		checkStatus(t, series, 200)
+		if !strings.Contains(series.body, "Trusted Group") || !strings.Contains(series.body, "Read →") || series.header.Get("Set-Cookie") != "" {
+			t.Fatal("MangaDex chapter list must display group credits without a session")
+		}
+		reader := c.get("/mangadex/read/" + externalChapterID)
+		checkStatus(t, reader, 200)
+		if !strings.Contains(reader.body, "https://uploads.mangadex.org/data-saver/") || !strings.Contains(reader.body, "Trusted Group") || !strings.Contains(reader.header.Get("Content-Security-Policy"), "uploads.mangadex.org") || reader.header.Get("Set-Cookie") != "" {
+			t.Fatal("MangaDex reader must use remote pages, show group credit, and avoid session cookies")
+		}
+
+		operator := freshClient(t, s.URL)
+		checkStatus(t, operator.signIn("operator@example.test", "a quiet place to read"), 303)
+		form := url.Values{
+			"csrf_token":        {operator.token()},
+			"group_id":          {groupID},
+			"group_name":        {"Trusted Group"},
+			"request_reference": {"verified request 42"},
+			"leader_verified":   {"on"},
+		}
+		checkStatus(t, operator.request("POST", "/admin/mangadex/group-removals", form.Encode(), "application/x-www-form-urlencoded", nil), 303)
+		series = c.get("/mangadex/manga/" + mangaID)
+		checkStatus(t, series, 200)
+		if strings.Contains(series.body, "Trusted Group") || !strings.Contains(series.body, "No credited chapters") {
+			t.Fatal("recorded group removal did not hide the group's chapter")
+		}
+		checkStatus(t, c.get("/mangadex/read/"+externalChapterID), 404)
+	})
 	t.Run("escaping and database failure", func(t *testing.T) {
 		payload := `<img src=x onerror=alert(1)>`
 		if _, err = p.Exec(ctx, "UPDATE series SET title=$1 WHERE slug='last-signal'", payload); err != nil {
@@ -163,6 +228,7 @@ func TestHTTPFoundation(t *testing.T) {
 		checkStatus(t, c.get("/account"), 200)
 		checkStatus(t, c.request("POST", "/logout", "", "", nil), 403)
 		checkStatus(t, c.request("POST", chapterPath, `{"page":2}`, "application/json", nil), 403)
+		checkStatus(t, c.request("POST", "/api/progress/import", `{"items":[{"chapter":1,"page":2}]}`, "application/json", nil), 403)
 		headers := map[string]string{"X-CSRF-Token": c.token(), "Origin": "https://attacker.example"}
 		checkStatus(t, c.request("POST", chapterPath, `{"page":2}`, "application/json", headers), 403)
 		checkStatus(t, c.get("/admin/uploads/anything"), 403)
@@ -195,6 +261,41 @@ func TestHTTPFoundation(t *testing.T) {
 		checkStatus(t, c.get("/read/"+stringID(chapter)), 404)
 		checkStatus(t, c.request("POST", chapterPath, `{"page":2}`, "application/json", headers), 404)
 		_, _ = p.Exec(ctx, "UPDATE chapters SET published=true WHERE id=$1", chapter)
+	})
+	t.Run("guest progress import is atomic and does not replace account bookmarks", func(t *testing.T) {
+		var secondChapter, thirdChapter int64
+		if err = p.QueryRow(ctx, "SELECT id FROM chapters ORDER BY id OFFSET 1 LIMIT 1").Scan(&secondChapter); err != nil {
+			t.Fatal(err)
+		}
+		if err = p.QueryRow(ctx, "SELECT id FROM chapters ORDER BY id OFFSET 2 LIMIT 1").Scan(&thirdChapter); err != nil {
+			t.Fatal(err)
+		}
+		headers := map[string]string{"X-CSRF-Token": c.token()}
+		body := `{"items":[{"chapter":` + stringID(chapter) + `,"page":2},{"chapter":` + stringID(secondChapter) + `,"page":2}]}`
+		result := c.request("POST", "/api/progress/import", body, "application/json", headers)
+		checkStatus(t, result, 200)
+		if !strings.Contains(result.body, `"imported":1`) || !strings.Contains(result.body, `"existing":1`) {
+			t.Fatal("unexpected import result", result.body)
+		}
+		if r := c.get(chapterPath); !strings.Contains(r.body, `"page":3`) {
+			t.Fatal("guest progress replaced the account bookmark", r.body)
+		}
+		if r := c.get("/api/progress/" + stringID(secondChapter)); !strings.Contains(r.body, `"page":2`) {
+			t.Fatal("guest bookmark was not imported", r.body)
+		}
+
+		invalid := `{"items":[{"chapter":` + stringID(thirdChapter) + `,"page":2},{"chapter":` + stringID(chapter) + `,"page":999}]}`
+		checkStatus(t, c.request("POST", "/api/progress/import", invalid, "application/json", headers), 400)
+		if r := c.get("/api/progress/" + stringID(thirdChapter)); !strings.Contains(r.body, `"page":0`) {
+			t.Fatal("invalid import partially committed", r.body)
+		}
+		for _, malformed := range []string{
+			`{"items":[]}`,
+			`{"items":[{"chapter":` + stringID(chapter) + `,"page":2,"user_id":1}]}`,
+			`{"items":[{"chapter":` + stringID(chapter) + `,"page":2},{"chapter":` + stringID(chapter) + `,"page":3}]}`,
+		} {
+			checkStatus(t, c.request("POST", "/api/progress/import", malformed, "application/json", headers), 400)
+		}
 	})
 	t.Run("session rotates and logout revokes copied cookie", func(t *testing.T) {
 		u, _ := url.Parse(s.URL)
@@ -302,7 +403,7 @@ func TestIdleExpiry(t *testing.T) {
 
 func TestEscapedReaderTranscript(t *testing.T) {
 	var buf bytes.Buffer
-	err := readerView(store.ChapterRow{SeriesTitle: "<script>bad</script>"}, []store.Page{{Number: 1, Transcript: `" onload="alert(1)`, Image: "sample.webp"}}, "token", false).Render(context.Background(), &buf)
+	err := readerView(store.ChapterRow{SeriesTitle: "<script>bad</script>"}, []store.Page{{Number: 1, Transcript: `" onload="alert(1)`, Image: "sample.webp"}}, "token", 0).Render(context.Background(), &buf)
 	if err != nil {
 		t.Fatal(err)
 	}

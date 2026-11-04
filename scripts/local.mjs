@@ -8,6 +8,14 @@ import { once } from "node:events";
 const mode = process.argv[2] || "dev";
 if (!["dev", "test"].includes(mode)) throw new Error("Use dev or test");
 const test = mode === "test";
+const httpPort = test
+  ? Number(process.env.KOMANOOK_TEST_HTTP_PORT || 8080)
+  : 8080;
+if (!Number.isInteger(httpPort) || httpPort < 1024 || httpPort > 65535)
+  throw new Error(
+    "KOMANOOK_TEST_HTTP_PORT must be an available port from 1024 to 65535",
+  );
+const baseURL = test ? `http://127.0.0.1:${httpPort}` : "http://localhost:8080";
 await mkdir(".data", { recursive: true });
 await mkdir("bin", { recursive: true });
 const scratch = await mkdtemp(path.join(tmpdir(), "komanook-"));
@@ -33,8 +41,9 @@ const dsn = `postgres://komanook:local-komanook-only@127.0.0.1:${port}/komanook?
 const env = {
   ...process.env,
   APP_ENV: test ? "test" : "development",
-  HTTP_ADDR: "127.0.0.1:8080",
-  BASE_URL: "http://localhost:8080",
+  HTTP_ADDR: `127.0.0.1:${httpPort}`,
+  BASE_URL: baseURL,
+  TEST_BASE_URL: baseURL,
   DATABASE_URL: dsn,
   TEST_DATABASE_URL: dsn,
   MEDIA_DIR: test ? path.join(scratch, "media") : path.resolve(".data/media"),
@@ -118,7 +127,7 @@ try {
     if (server.exitCode !== null)
       throw new Error("Server stopped; see .data/server.log");
     try {
-      const response = await fetch("http://localhost:8080/health/ready");
+      const response = await fetch(`${baseURL}/health/ready`);
       if (response.ok) {
         ready = true;
         break;
@@ -127,9 +136,7 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   if (!ready) throw new Error("Server readiness timed out");
-  console.log(
-    "Komanook is ready at http://localhost:8080 — local fixture accounts only.",
-  );
+  console.log(`Komanook is ready at ${baseURL} — local fixture accounts only.`);
   if (test) {
     await run("npm", ["run", "test:browser"]);
     await run("npm", ["run", "bench"]);
