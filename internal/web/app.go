@@ -89,6 +89,9 @@ func (a *App) Handler() http.Handler {
 	private.HandleFunc("GET /account", a.account)
 	private.HandleFunc("GET /account/profile", a.profileSettings)
 	private.HandleFunc("POST /account/profile", a.saveProfile)
+	private.HandleFunc("GET /account/profile/preview", a.profilePreview)
+	private.HandleFunc("GET /account/library", a.readerLibrary)
+	private.HandleFunc("POST /account/library/{work}", a.saveLibraryEntry)
 	private.HandleFunc("GET /read/{chapter}", a.reader)
 	private.HandleFunc("GET /api/progress/{chapter}", a.getProgress)
 	private.HandleFunc("POST /api/progress/{chapter}", a.saveProgress)
@@ -106,7 +109,7 @@ func (a *App) Handler() http.Handler {
 	}))
 	public.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "private, no-store")
-		if r.Method == http.MethodPost && r.URL.Path == "/account/profile" {
+		if r.Method == http.MethodPost && (r.URL.Path == "/account/profile" || strings.HasPrefix(r.URL.Path, "/account/library/")) {
 			r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
 		}
 		csrf.ServeHTTP(w, r)

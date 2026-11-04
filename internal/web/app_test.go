@@ -251,8 +251,18 @@ func TestHTTPFoundation(t *testing.T) {
 			t.Fatal("profile editor must be private and offer an explicit visibility choice")
 		}
 		checkStatus(t, c.request("POST", "/account/profile", "", "application/x-www-form-urlencoded", nil), 403)
+		previewBeforeSave := c.get("/account/profile/preview")
+		checkStatus(t, previewBeforeSave, 303)
+		if previewBeforeSave.header.Get("Location") != "/account/profile?preview=save" {
+			t.Fatal("a reader without a profile should be directed to save one before preview")
+		}
+		anonymous := freshClient(t, s.URL).get("/account/profile/preview")
+		checkStatus(t, anonymous, 303)
+		if anonymous.header.Get("Location") != "/login" || !strings.Contains(anonymous.header.Get("Cache-Control"), "no-store") {
+			t.Fatal("profile preview must require an account and stay out of shared caches")
+		}
 
-		works, err := q.PublishedWorks(ctx)
+		works, err := q.CatalogWorks(ctx)
 		if err != nil || len(works) < 2 {
 			t.Fatalf("seeded Work choices missing: %v", err)
 		}
@@ -294,8 +304,8 @@ func TestHTTPFoundation(t *testing.T) {
 
 		public := c.get("/u/paperghost")
 		checkStatus(t, public, 200)
-		if public.header.Get("Set-Cookie") != "" || !strings.Contains(public.header.Get("Cache-Control"), "public") {
-			t.Fatal("public profile must be cacheable without setting identity cookies")
+		if public.header.Get("Set-Cookie") != "" || !strings.Contains(public.header.Get("Cache-Control"), "no-store") || strings.Contains(public.header.Get("Cache-Control"), "public") {
+			t.Fatal("public profile must be uncached without setting identity cookies")
 		}
 		if strings.Contains(public.body, "reader@example.test") || strings.Contains(public.body, `<script>alert(1)</script>`) || !strings.Contains(public.body, "&lt;script&gt;") {
 			t.Fatal("public profile exposed account data or unescaped biography")
@@ -306,6 +316,37 @@ func TestHTTPFoundation(t *testing.T) {
 		if !strings.Contains(public.body, "Chapters with a saved place") || !strings.Contains(public.body, "Saved places at a chapter’s last page") {
 			t.Fatal("opt-in reading milestones are missing")
 		}
+		func() {
+			if _, updateErr := p.Exec(ctx, "UPDATE series SET published=false WHERE work_id=$1", works[0].WorkID); updateErr != nil {
+				t.Fatal(updateErr)
+			}
+			defer func() {
+				if _, restoreErr := p.Exec(ctx, "UPDATE series SET published=true WHERE work_id=$1", works[0].WorkID); restoreErr != nil {
+					t.Error(restoreErr)
+				}
+			}()
+			stillFavorite := c.get("/u/paperghost")
+			checkStatus(t, stillFavorite, 200)
+			if !strings.Contains(stillFavorite.body, works[0].WorkTitle) {
+				t.Fatal("unpublishing a hosted edition must not erase its Work favorite")
+			}
+			catalogWork, workErr := q.CatalogWorkByID(ctx, works[0].WorkID)
+			if workErr != nil || catalogWork.HasHostedEdition {
+				t.Fatalf("the Work catalog should retain metadata without a published edition: %+v err=%v", catalogWork, workErr)
+			}
+			libraryWhileUnhosted := c.get("/account/library")
+			if !strings.Contains(libraryWhileUnhosted.body, works[0].WorkTitle) || strings.Contains(libraryWhileUnhosted.body, `href="/series/`+works[0].WorkSlug+`"`) {
+				t.Fatal("an unhosted Work should remain trackable without a dead reading link")
+			}
+			favorites, queryErr := q.ProfileFavoritesByUserID(ctx, owner.ID)
+			if queryErr != nil || len(favorites) != 2 {
+				t.Fatalf("Work favorites must remain independent of publication: favorites=%d err=%v", len(favorites), queryErr)
+			}
+			stillSelectable := c.get("/account/profile")
+			if !strings.Contains(stillSelectable.body, `value="`+stringID(works[0].WorkID)+`" selected`) {
+				t.Fatal("an unhosted Work should remain selected in profile settings")
+			}
+		}()
 
 		other := freshClient(t, s.URL)
 		checkStatus(t, other.signIn("other@example.test", "a quiet place to read"), 303)
@@ -330,6 +371,86 @@ func TestHTTPFoundation(t *testing.T) {
 		form.Set("visibility", "private")
 		checkStatus(t, c.request("POST", "/account/profile", form.Encode(), "application/x-www-form-urlencoded", nil), 303)
 		checkStatus(t, c.get("/u/paperghost"), 404)
+		preview := c.get("/account/profile/preview")
+		checkStatus(t, preview, 200)
+		if !strings.Contains(preview.header.Get("Cache-Control"), "no-store") || !strings.Contains(preview.body, "Private preview · only you can see this page") || !strings.Contains(preview.body, works[0].WorkTitle) {
+			t.Fatal("profile owner preview should use the public layout with private visibility and no-store")
+		}
+	})
+	t.Run("personal library is Work-based, private, and account-scoped", func(t *testing.T) {
+		works, queryErr := q.CatalogWorks(ctx)
+		if queryErr != nil || len(works) == 0 {
+			t.Fatalf("catalog Works missing: %v", queryErr)
+		}
+		owner, queryErr := q.UserByEmail(ctx, "reader@example.test")
+		if queryErr != nil {
+			t.Fatal(queryErr)
+		}
+		_, _ = p.Exec(ctx, "DELETE FROM reader_library WHERE user_id=$1 AND work_id=$2", owner.ID, works[0].WorkID)
+		library := c.get("/account/library")
+		checkStatus(t, library, 200)
+		if !strings.Contains(library.header.Get("Cache-Control"), "no-store") || !strings.Contains(library.body, "Your manga library") || strings.Contains(library.body, "reader@example.test") {
+			t.Fatal("library must render privately without exposing the account identity")
+		}
+		checkStatus(t, c.request("POST", "/account/library/"+stringID(works[0].WorkID), "", "application/x-www-form-urlencoded", nil), 403)
+
+		form := url.Values{
+			"csrf_token": {c.token()}, "status": {"completed"}, "rating": {"9"},
+			"user_id": {stringID(owner.ID)},
+		}
+		checkStatus(t, c.request("POST", "/account/library/"+stringID(works[0].WorkID), form.Encode(), "application/x-www-form-urlencoded", nil), 303)
+		var status string
+		var rating int16
+		if err = p.QueryRow(ctx, "SELECT status, rating FROM reader_library WHERE user_id=$1 AND work_id=$2", owner.ID, works[0].WorkID).Scan(&status, &rating); err != nil || status != "completed" || rating != 9 {
+			t.Fatalf("saved library state mismatch: status=%q rating=%d err=%v", status, rating, err)
+		}
+		library = c.get("/account/library")
+		if !strings.Contains(library.body, `value="9" selected`) || !strings.Contains(library.body, `value="completed" selected`) || !strings.Contains(library.body, "Remove from library") {
+			t.Fatal("saved status and rating should be represented in the account's shelf")
+		}
+		other := freshClient(t, s.URL)
+		checkStatus(t, other.signIn("other@example.test", "a quiet place to read"), 303)
+		otherUser, queryErr := q.UserByEmail(ctx, "other@example.test")
+		if queryErr != nil {
+			t.Fatal(queryErr)
+		}
+		otherWorks, queryErr := q.LibraryWorksByUserID(ctx, store.LibraryWorksByUserIDParams{UserID: otherUser.ID, Search: ""})
+		if queryErr != nil {
+			t.Fatal(queryErr)
+		}
+		for _, work := range otherWorks {
+			if work.WorkID == works[0].WorkID && (work.Tracked || work.Rating.Valid) {
+				t.Fatal("another account's status or rating leaked into the library query")
+			}
+		}
+		otherForm := url.Values{
+			"csrf_token": {other.token()}, "status": {"plan_to_read"}, "rating": {"3"},
+			"user_id": {stringID(owner.ID)},
+		}
+		checkStatus(t, other.request("POST", "/account/library/"+stringID(works[0].WorkID), otherForm.Encode(), "application/x-www-form-urlencoded", nil), 303)
+		var otherStatus string
+		var otherRating int16
+		if err = p.QueryRow(ctx, "SELECT status, rating FROM reader_library WHERE user_id=$1 AND work_id=$2", otherUser.ID, works[0].WorkID).Scan(&otherStatus, &otherRating); err != nil || otherStatus != "plan_to_read" || otherRating != 3 {
+			t.Fatalf("library writes should use the signed-in account despite a forged owner field: status=%q rating=%d err=%v", otherStatus, otherRating, err)
+		}
+		otherRemove := url.Values{"csrf_token": {other.token()}, "remove": {"1"}, "user_id": {stringID(owner.ID)}}
+		checkStatus(t, other.request("POST", "/account/library/"+stringID(works[0].WorkID), otherRemove.Encode(), "application/x-www-form-urlencoded", nil), 303)
+		if err = p.QueryRow(ctx, "SELECT status, rating FROM reader_library WHERE user_id=$1 AND work_id=$2", owner.ID, works[0].WorkID).Scan(&status, &rating); err != nil || status != "completed" || rating != 9 {
+			t.Fatalf("another account's removal must not clear the owner's entry: status=%q rating=%d err=%v", status, rating, err)
+		}
+		invalid := url.Values{"csrf_token": {c.token()}, "status": {"completed"}, "rating": {"11"}}
+		checkStatus(t, c.request("POST", "/account/library/"+stringID(works[0].WorkID), invalid.Encode(), "application/x-www-form-urlencoded", nil), 422)
+		remove := url.Values{"csrf_token": {c.token()}, "remove": {"1"}}
+		checkStatus(t, c.request("POST", "/account/library/"+stringID(works[0].WorkID), remove.Encode(), "application/x-www-form-urlencoded", nil), 303)
+		var remaining int
+		if err = p.QueryRow(ctx, "SELECT count(*) FROM reader_library WHERE user_id=$1 AND work_id=$2", owner.ID, works[0].WorkID).Scan(&remaining); err != nil || remaining != 0 {
+			t.Fatalf("remove should only clear the signed-in user's entry: remaining=%d err=%v", remaining, err)
+		}
+		anonymous := freshClient(t, s.URL).get("/account/library")
+		checkStatus(t, anonymous, 303)
+		if anonymous.header.Get("Location") != "/login" {
+			t.Fatal("personal library should require a signed-in account")
+		}
 	})
 	t.Run("scoped progress and validation", func(t *testing.T) {
 		headers := map[string]string{"X-CSRF-Token": c.token()}

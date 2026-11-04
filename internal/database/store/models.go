@@ -45,6 +45,15 @@ type ProfileFavorite struct {
 	Position int16
 }
 
+type ReaderLibrary struct {
+	UserID    int64
+	WorkID    int64
+	Status    string
+	Rating    pgtype.Int2
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type ReaderProfile struct {
 	UserID           int64
 	Handle           string
@@ -112,4 +121,7 @@ type Work struct {
 	Slug      string
 	Title     string
 	CreatedAt pgtype.Timestamptz
+	Creator   string
+	Genre     string
+	Cover     string
 }

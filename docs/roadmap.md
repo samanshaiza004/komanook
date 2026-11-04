@@ -10,9 +10,9 @@ The original foundation gates were completed and the latest remote run at `e3dce
 
 ## 0.1 identity: first profile slice
 
-Delivered here: private-by-default reader profiles with handles, display names, notes, limited themes, explicit public visibility, up to six ordered Work favorites, and optional aggregate reading milestones. The showcase layout is constrained and versioned. Public pages are crawlable and cacheable without a session; private profile data is not served from public routes.
+Delivered here: private-by-default reader profiles with handles, display names, notes, limited themes, explicit public visibility, up to six ordered Work favorites, owner-only preview, and optional aggregate reading milestones. Public profile pages are uncached and session-independent; private profile data is not served from public routes. Readers can also track catalog Works privately with one of five statuses and an optional 1–10 rating. Favorites and library entries persist independently of whether Komanook has a published hosted edition. Adding or updating a library entry creates no social activity.
 
-Next: universal library statuses and chosen editions, public/private curated collections, creator favorites, and taste comparison. Add follows, reviews, comments, and activity only alongside blocking, reporting, moderation, deletion, and spoiler controls. Keep the first profile meaningful without followers or a feed.
+Next: external catalog metadata and cover rights, custom ordered collections, creator identities and favorites, then taste comparison. Add follows, reviews, comments, and activity only alongside blocking, reporting, moderation, deletion, and spoiler controls. Keep the profile meaningful without followers or a feed.
 
 ## Private content pilot
 

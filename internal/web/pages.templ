@@ -170,6 +170,10 @@ templ accountView(u store.User, token string, removals []store.MangaDexGroupRemo
 			<p class="eyebrow">A place to return to</p>
 			<h1>Your reading space</h1>
 			<p>Signed in as <strong>{ u.Email }</strong>. Your reading place saves across devices as you turn the pages.</p><a class="button" href="/catalog">Find your next read →</a>
+			<section class="account-profile-card" aria-labelledby="account-library-title">
+				<div><p class="eyebrow">Collect · keep · return</p><h2 id="account-library-title">Your manga library</h2><p>Track works across the catalog, whether or not Komanook hosts a readable edition. Your status and rating stay private.</p></div>
+				<a class="button button-secondary" href="/account/library">Open your library <span aria-hidden="true">→</span></a>
+			</section>
 			<section class="account-profile-card" aria-labelledby="account-profile-title">
 				<div><p class="eyebrow">Collect · curate · share</p><h2 id="account-profile-title">Your manga profile</h2><p>Give your reading taste a place to live. Choose a few favorite works, arrange your own shelf, and decide what stays private.</p></div>
 				<a class="button button-secondary" href="/account/profile">Shape your profile <span aria-hidden="true">→</span></a>

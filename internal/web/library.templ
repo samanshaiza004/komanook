@@ -1,0 +1,142 @@
+package web
+
+import (
+	"fmt"
+	"strconv"
+
+	"komanook/internal/database/store"
+)
+
+type libraryPageData struct {
+	Token       string
+	Search      string
+	Works       []store.LibraryWorksByUserIDRow
+	Tracked     int32
+	Reading     int32
+	Completed   int32
+	SavedWork   string
+	RemovedWork string
+	Error       string
+}
+
+templ libraryView(data libraryPageData) {
+	@layout("Your manga library", "Keep your manga statuses, ratings, and reading plans together.", "library") {
+		<main id="main" class="wrap library-main">
+			<a class="back-link" href="/account">← Back to your reading space</a>
+			<header class="library-heading">
+				<div>
+					<p class="eyebrow">Your shelf, your pace</p>
+					<h1>Your manga library</h1>
+					<p>Keep track of the stories you’re reading, saving for later, or have finished. Your statuses and ratings are private to your account.</p>
+				</div>
+				<a class="button button-secondary" href="/account/profile">Shape your profile <span aria-hidden="true">→</span></a>
+			</header>
+			<section class="library-counts" aria-label="Your library counts">
+				<div><strong>{ strconv.FormatInt(int64(data.Tracked), 10) }</strong><span>Tracked</span></div>
+				<div><strong>{ strconv.FormatInt(int64(data.Reading), 10) }</strong><span>Currently reading</span></div>
+				<div><strong>{ strconv.FormatInt(int64(data.Completed), 10) }</strong><span>Completed</span></div>
+			</section>
+			<form class="library-search" method="get" action="/account/library">
+				<div><label for="library-search">Find a manga</label><input id="library-search" type="search" name="q" value={ data.Search } maxlength="100" placeholder="Search titles or creators"/></div>
+				<button class="button" type="submit">Search <span aria-hidden="true">↗</span></button>
+			</form>
+			if data.SavedWork != "" {
+				<p class="library-notice" role="status">Your library entry is saved.</p>
+			}
+			if data.RemovedWork != "" {
+				<p class="library-notice" role="status">The manga was removed from your library.</p>
+			}
+			if data.Error != "" {
+				<p class="form-error library-error" role="alert">{ data.Error }</p>
+			}
+			<p class="library-private-note">Your library is private. Adding a manga does not publish an activity or change your profile favorites.</p>
+			if len(data.Works) == 0 {
+				<section class="library-empty">
+					<p class="eyebrow">No matches on this shelf</p>
+					<h2>{ "Try a different title or creator." }</h2>
+					<p>The current catalog has no manga matching “{ data.Search }”.</p>
+				</section>
+			} else {
+				<section class="library-grid" aria-label="Manga in the catalog">
+					for _, work := range data.Works {
+						<article class="library-card">
+							<div class="library-cover">
+								if work.Cover != "" {
+									<img src={ asset(work.Cover) } width="400" height="600" alt={ work.WorkTitle + " cover" } loading="lazy"/>
+								} else {
+									<div class="library-cover-placeholder" role="img" aria-label={ work.WorkTitle + " — cover artwork unavailable" }><span>{ work.WorkTitle }</span></div>
+								}
+								if work.Tracked {
+									<span class="library-status-ribbon">{ libraryStatusLabel(work.LibraryStatus) }</span>
+								}
+							</div>
+							<div class="library-card-content">
+								<div class="library-work-heading">
+									<p class="eyebrow">
+										if work.HasHostedEdition {
+											Hosted edition
+										} else {
+											Catalog work
+										}
+									</p>
+									if work.HasHostedEdition {
+										<h2><a href={ templ.URL("/series/" + work.WorkSlug) }>{ work.WorkTitle }</a></h2>
+									} else {
+										<h2>{ work.WorkTitle }</h2>
+									}
+									if work.Creator != "" {
+										<p class="library-creator">{ work.Creator }</p>
+									}
+									if work.Genre != "" {
+										<p class="library-genre">{ work.Genre }</p>
+									}
+								</div>
+								<form class="library-entry-form" method="post" action={ templ.URL("/account/library/" + strconv.FormatInt(work.WorkID, 10)) }>
+									<input type="hidden" name="csrf_token" value={ data.Token }/>
+									if data.Search != "" {
+										<input type="hidden" name="q" value={ data.Search }/>
+									}
+									<div class="library-entry-fields">
+										<div>
+											<label for={ fmt.Sprintf("library-status-%d", work.WorkID) }>Reading status</label>
+											<select id={ fmt.Sprintf("library-status-%d", work.WorkID) } name="status" required>
+												<option value="" disabled selected?={ !work.Tracked }>Choose a status</option>
+												<option value="reading" selected?={ work.LibraryStatus == "reading" }>Currently reading</option>
+												<option value="plan_to_read" selected?={ work.LibraryStatus == "plan_to_read" }>Plan to read</option>
+												<option value="completed" selected?={ work.LibraryStatus == "completed" }>Completed</option>
+												<option value="on_hold" selected?={ work.LibraryStatus == "on_hold" }>On hold</option>
+												<option value="dropped" selected?={ work.LibraryStatus == "dropped" }>Dropped</option>
+											</select>
+										</div>
+										<div>
+											<label for={ fmt.Sprintf("library-rating-%d", work.WorkID) }>Your rating</label>
+											<select id={ fmt.Sprintf("library-rating-%d", work.WorkID) } name="rating">
+												<option value="" selected?={ !work.Rating.Valid }>Not rated</option>
+												for score := 1; score <= 10; score++ {
+													<option value={ strconv.Itoa(score) } selected?={ work.Rating.Valid && work.Rating.Int16 == int16(score) }>{ strconv.Itoa(score) + " / 10" }</option>
+												}
+											</select>
+										</div>
+									</div>
+									<div class="library-entry-actions">
+										<button class="button" type="submit">
+											if work.Tracked {
+												Save changes
+											} else {
+												Add to library
+											}
+										</button>
+										if work.Tracked {
+											<button class="library-remove" type="submit" name="remove" value="1" formnovalidate>Remove from library</button>
+										}
+									</div>
+								</form>
+							</div>
+						</article>
+					}
+				</section>
+				<p class="library-result-limit">Showing up to 100 catalog works. Additions to this shelf stay private to your account.</p>
+			}
+		</main>
+	}
+}

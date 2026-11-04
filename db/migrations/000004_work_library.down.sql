@@ -1,0 +1,6 @@
+BEGIN;
+DROP TABLE reader_library;
+ALTER TABLE works DROP COLUMN cover;
+ALTER TABLE works DROP COLUMN genre;
+ALTER TABLE works DROP COLUMN creator;
+COMMIT;

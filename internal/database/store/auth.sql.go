@@ -7,6 +7,8 @@ package store
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addProfileFavorite = `-- name: AddProfileFavorite :exec
@@ -24,6 +26,100 @@ func (q *Queries) AddProfileFavorite(ctx context.Context, arg AddProfileFavorite
 	return err
 }
 
+const catalogWorkByID = `-- name: CatalogWorkByID :one
+SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
+       w.creator, w.cover, w.genre,
+       EXISTS (SELECT 1 FROM series s WHERE s.work_id = w.id AND s.published) AS has_hosted_edition
+FROM works w
+WHERE w.id = $1
+`
+
+type CatalogWorkByIDRow struct {
+	WorkID           int64
+	WorkSlug         string
+	WorkTitle        string
+	Creator          string
+	Cover            string
+	Genre            string
+	HasHostedEdition bool
+}
+
+func (q *Queries) CatalogWorkByID(ctx context.Context, id int64) (CatalogWorkByIDRow, error) {
+	row := q.db.QueryRow(ctx, catalogWorkByID, id)
+	var i CatalogWorkByIDRow
+	err := row.Scan(
+		&i.WorkID,
+		&i.WorkSlug,
+		&i.WorkTitle,
+		&i.Creator,
+		&i.Cover,
+		&i.Genre,
+		&i.HasHostedEdition,
+	)
+	return i, err
+}
+
+const catalogWorks = `-- name: CatalogWorks :many
+SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
+       w.creator, w.cover, w.genre,
+       EXISTS (SELECT 1 FROM series s WHERE s.work_id = w.id AND s.published) AS has_hosted_edition
+FROM works w
+ORDER BY w.title, w.id
+LIMIT 100
+`
+
+type CatalogWorksRow struct {
+	WorkID           int64
+	WorkSlug         string
+	WorkTitle        string
+	Creator          string
+	Cover            string
+	Genre            string
+	HasHostedEdition bool
+}
+
+func (q *Queries) CatalogWorks(ctx context.Context) ([]CatalogWorksRow, error) {
+	rows, err := q.db.Query(ctx, catalogWorks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CatalogWorksRow{}
+	for rows.Next() {
+		var i CatalogWorksRow
+		if err := rows.Scan(
+			&i.WorkID,
+			&i.WorkSlug,
+			&i.WorkTitle,
+			&i.Creator,
+			&i.Cover,
+			&i.Genre,
+			&i.HasHostedEdition,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteLibraryEntry = `-- name: DeleteLibraryEntry :exec
+DELETE FROM reader_library WHERE user_id = $1 AND work_id = $2
+`
+
+type DeleteLibraryEntryParams struct {
+	UserID int64
+	WorkID int64
+}
+
+func (q *Queries) DeleteLibraryEntry(ctx context.Context, arg DeleteLibraryEntryParams) error {
+	_, err := q.db.Exec(ctx, deleteLibraryEntry, arg.UserID, arg.WorkID)
+	return err
+}
+
 const deleteProfileFavorites = `-- name: DeleteProfileFavorites :exec
 DELETE FROM profile_favorites WHERE user_id = $1
 `
@@ -31,6 +127,92 @@ DELETE FROM profile_favorites WHERE user_id = $1
 func (q *Queries) DeleteProfileFavorites(ctx context.Context, userID int64) error {
 	_, err := q.db.Exec(ctx, deleteProfileFavorites, userID)
 	return err
+}
+
+const libraryCountsByUserID = `-- name: LibraryCountsByUserID :one
+SELECT count(*)::integer AS tracked,
+       count(*) FILTER (WHERE status = 'reading')::integer AS reading,
+       count(*) FILTER (WHERE status = 'completed')::integer AS completed
+FROM reader_library
+WHERE user_id = $1
+`
+
+type LibraryCountsByUserIDRow struct {
+	Tracked   int32
+	Reading   int32
+	Completed int32
+}
+
+func (q *Queries) LibraryCountsByUserID(ctx context.Context, userID int64) (LibraryCountsByUserIDRow, error) {
+	row := q.db.QueryRow(ctx, libraryCountsByUserID, userID)
+	var i LibraryCountsByUserIDRow
+	err := row.Scan(&i.Tracked, &i.Reading, &i.Completed)
+	return i, err
+}
+
+const libraryWorksByUserID = `-- name: LibraryWorksByUserID :many
+SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
+       w.creator, w.cover, w.genre,
+       EXISTS (SELECT 1 FROM series s WHERE s.work_id = w.id AND s.published) AS has_hosted_edition,
+       COALESCE(l.status, '')::text AS library_status,
+       l.rating,
+       CASE WHEN l.user_id IS NULL THEN false ELSE true END AS tracked
+FROM works w
+LEFT JOIN reader_library l ON l.work_id = w.id AND l.user_id = $1
+WHERE $2::text = ''
+   OR w.title ILIKE '%' || $2::text || '%'
+   OR w.creator ILIKE '%' || $2::text || '%'
+ORDER BY (l.user_id IS NOT NULL) DESC, w.title, w.id
+LIMIT 100
+`
+
+type LibraryWorksByUserIDParams struct {
+	UserID int64
+	Search string
+}
+
+type LibraryWorksByUserIDRow struct {
+	WorkID           int64
+	WorkSlug         string
+	WorkTitle        string
+	Creator          string
+	Cover            string
+	Genre            string
+	HasHostedEdition bool
+	LibraryStatus    string
+	Rating           pgtype.Int2
+	Tracked          bool
+}
+
+func (q *Queries) LibraryWorksByUserID(ctx context.Context, arg LibraryWorksByUserIDParams) ([]LibraryWorksByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, libraryWorksByUserID, arg.UserID, arg.Search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LibraryWorksByUserIDRow{}
+	for rows.Next() {
+		var i LibraryWorksByUserIDRow
+		if err := rows.Scan(
+			&i.WorkID,
+			&i.WorkSlug,
+			&i.WorkTitle,
+			&i.Creator,
+			&i.Cover,
+			&i.Genre,
+			&i.HasHostedEdition,
+			&i.LibraryStatus,
+			&i.Rating,
+			&i.Tracked,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const loginAttempt = `-- name: LoginAttempt :one
@@ -74,22 +256,23 @@ func (q *Queries) ProfileByUserID(ctx context.Context, userID int64) (ReaderProf
 
 const profileFavoritesByUserID = `-- name: ProfileFavoritesByUserID :many
 SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
-       s.creator, s.cover, s.genre, f.position
+       w.creator, w.cover, w.genre, f.position,
+       EXISTS (SELECT 1 FROM series s WHERE s.work_id = w.id AND s.published) AS has_hosted_edition
 FROM profile_favorites f
 JOIN works w ON w.id = f.work_id
-JOIN series s ON s.work_id = w.id AND s.published = true
 WHERE f.user_id = $1
 ORDER BY f.position
 `
 
 type ProfileFavoritesByUserIDRow struct {
-	WorkID    int64
-	WorkSlug  string
-	WorkTitle string
-	Creator   string
-	Cover     string
-	Genre     string
-	Position  int16
+	WorkID           int64
+	WorkSlug         string
+	WorkTitle        string
+	Creator          string
+	Cover            string
+	Genre            string
+	Position         int16
+	HasHostedEdition bool
 }
 
 func (q *Queries) ProfileFavoritesByUserID(ctx context.Context, userID int64) ([]ProfileFavoritesByUserIDRow, error) {
@@ -109,6 +292,7 @@ func (q *Queries) ProfileFavoritesByUserID(ctx context.Context, userID int64) ([
 			&i.Cover,
 			&i.Genre,
 			&i.Position,
+			&i.HasHostedEdition,
 		); err != nil {
 			return nil, err
 		}
@@ -202,80 +386,30 @@ func (q *Queries) PublicProfileByHandle(ctx context.Context, handle string) (Rea
 	return i, err
 }
 
-const publishedWorkByID = `-- name: PublishedWorkByID :one
-SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
-       s.creator, s.cover, s.genre
-FROM works w
-JOIN series s ON s.work_id = w.id AND s.published = true
-WHERE w.id = $1
+const saveLibraryEntry = `-- name: SaveLibraryEntry :exec
+INSERT INTO reader_library (user_id, work_id, status, rating)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (user_id, work_id) DO UPDATE SET
+    status = EXCLUDED.status,
+    rating = EXCLUDED.rating,
+    updated_at = now()
 `
 
-type PublishedWorkByIDRow struct {
-	WorkID    int64
-	WorkSlug  string
-	WorkTitle string
-	Creator   string
-	Cover     string
-	Genre     string
+type SaveLibraryEntryParams struct {
+	UserID int64
+	WorkID int64
+	Status string
+	Rating pgtype.Int2
 }
 
-func (q *Queries) PublishedWorkByID(ctx context.Context, id int64) (PublishedWorkByIDRow, error) {
-	row := q.db.QueryRow(ctx, publishedWorkByID, id)
-	var i PublishedWorkByIDRow
-	err := row.Scan(
-		&i.WorkID,
-		&i.WorkSlug,
-		&i.WorkTitle,
-		&i.Creator,
-		&i.Cover,
-		&i.Genre,
+func (q *Queries) SaveLibraryEntry(ctx context.Context, arg SaveLibraryEntryParams) error {
+	_, err := q.db.Exec(ctx, saveLibraryEntry,
+		arg.UserID,
+		arg.WorkID,
+		arg.Status,
+		arg.Rating,
 	)
-	return i, err
-}
-
-const publishedWorks = `-- name: PublishedWorks :many
-SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
-       s.creator, s.cover, s.genre
-FROM works w
-JOIN series s ON s.work_id = w.id AND s.published = true
-ORDER BY w.title, w.id
-LIMIT 100
-`
-
-type PublishedWorksRow struct {
-	WorkID    int64
-	WorkSlug  string
-	WorkTitle string
-	Creator   string
-	Cover     string
-	Genre     string
-}
-
-func (q *Queries) PublishedWorks(ctx context.Context) ([]PublishedWorksRow, error) {
-	rows, err := q.db.Query(ctx, publishedWorks)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []PublishedWorksRow{}
-	for rows.Next() {
-		var i PublishedWorksRow
-		if err := rows.Scan(
-			&i.WorkID,
-			&i.WorkSlug,
-			&i.WorkTitle,
-			&i.Creator,
-			&i.Cover,
-			&i.Genre,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	return err
 }
 
 const upsertReaderProfile = `-- name: UpsertReaderProfile :one

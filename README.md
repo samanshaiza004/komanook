@@ -1,6 +1,6 @@
 # Komanook
 
-A small Go foundation for an independent manga, manhwa and webcomic reading platform. Server-rendered catalog and series pages, an independent reader, real PostgreSQL account progress, invitation-only login, private image normalization, and an opt-in reader profile with an ordered shelf of favorite Works. Komanook does not scrape or store MangaDex chapter images. No SPA, Redis or hosted identity service is required to run the slice.
+A small Go foundation for an independent manga, manhwa and webcomic reading platform. Server-rendered catalog and series pages, an independent reader, real PostgreSQL account progress, invitation-only login, private image normalization, a private Work-based library, and an opt-in reader profile with an ordered shelf of favorite Works. Komanook does not scrape or store MangaDex chapter images. No SPA, Redis or hosted identity service is required to run the slice.
 
 ![Komanook catalog](docs/screenshots/desktop-catalog.png)
 
@@ -22,7 +22,9 @@ Open [Komanook locally](http://localhost:8080). The helper initializes a persist
 
 These accounts exist only because the local helper explicitly provisions them. The production app has no built-in accounts or passwords. Restarting the local helper resets fixture passwords and revokes their previous sessions. Read all samples without signing in; guest progress stays in a separate device namespace. Signed-in progress has its own per-account device namespace and is also saved to PostgreSQL. On the account page, you can explicitly import guest bookmarks; existing account bookmarks are kept.
 
-Sign in and choose **Your manga profile** to create a private profile. Add a handle, note, favorite Works and a theme, then switch visibility to public when you're ready to share `/u/{handle}`. Reading milestones stay off until enabled. Public profiles show no email or chapter-by-chapter history; favorites refer to canonical Work records rather than asserting reading status.
+Sign in and choose **Your manga library** to track a catalog Work as currently reading, plan to read, completed, on hold, or dropped, with an optional 1–10 rating. This state is private and does not create activity or change profile favorites. Work identity and its display metadata are independent of hosted-edition publication; an unhosted Work can still be tracked, though this pilot only seeds its three original sample Works and does not import an external catalog.
+
+Choose **Your manga profile** to create a private profile. Add a handle, note, favorite Works and a theme, then switch visibility to public when you're ready to share `/u/{handle}`. Use **Preview your profile** to see the same layout while it is private. Reading milestones stay off until enabled. Profile responses are not shared-cacheable; public profiles show no email or chapter-by-chapter history, and favorites refer to canonical Work records rather than asserting reading status.
 
 Profiles are an invitation-only pilot feature. Reporting, blocking, and public-community moderation tools are not implemented, so account provisioning remains restricted.
 

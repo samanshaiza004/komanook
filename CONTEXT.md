@@ -20,6 +20,10 @@ _Avoid_: Feed
 An ordered expression of personal admiration for a Work. It does not assert that the reader has started or completed it.
 _Avoid_: Bookmark, rating
 
+**Library entry**:
+A reader's private tracking state for a Work: one reading status and an optional rating. It does not publish activity, make the Work a profile favorite, select an Edition, or identify a chapter position.
+_Avoid_: Favorite, reading progress
+
 ## Manga identity
 
 **Work**:

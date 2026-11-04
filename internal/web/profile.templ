@@ -20,6 +20,9 @@ templ profileEditorView(data profileEditorData) {
 					<p class="profile-share-link"><a href={ templ.URL("/u/" + data.Form.Handle) }>View your public profile →</a></p>
 				}
 			}
+			if data.PreviewNeeded {
+				<p class="profile-saved" role="status">Save your profile privately first. You can preview it before making it public.</p>
+			}
 			if data.Error != "" {
 				<p class="form-error profile-error" role="alert">{ data.Error }</p>
 			}
@@ -58,15 +61,24 @@ templ profileEditorView(data profileEditorData) {
 						<div class="profile-field-wide profile-check-row"><input id="show-reading-stats" name="show_reading_stats" type="checkbox" checked?={ data.Form.ShowReadingStats }/><label for="show-reading-stats">Show reading milestones</label><small>Counts are based on saved chapter places. Komanook does not estimate reading time.</small></div>
 					</div>
 				</fieldset>
-				<div class="profile-form-actions"><button class="button" type="submit">Save profile</button><a href="/catalog">Browse the catalog</a></div>
+				<div class="profile-form-actions">
+					<button class="button" type="submit">Save profile</button>
+					if data.HasProfile {
+						<a href="/account/profile/preview">Preview your profile</a>
+					}
+					<a href="/catalog">Browse the catalog</a>
+				</div>
 			</form>
 		</main>
 	}
 }
 
-templ publicProfileView(profile store.ReaderProfile, favorites []store.ProfileFavoritesByUserIDRow, stats store.ProfileReadingStatsRow) {
+templ publicProfileView(profile store.ReaderProfile, favorites []store.ProfileFavoritesByUserIDRow, stats store.ProfileReadingStatsRow, preview bool) {
 	@layout(profile.DisplayName+" · Reader profile", profileDescription(profile), "reader-profile") {
 		<main id="main" class="profile-main">
+			if preview {
+				<p class="profile-preview-banner" role="status">Private preview · only you can see this page. <a href="/account/profile">Edit your profile</a></p>
+			}
 			<header class={ "profile-banner profile-theme-" + profile.Theme }>
 				<div class="profile-banner-copy">
 					<p class="eyebrow">A reader’s corner</p>
@@ -76,10 +88,10 @@ templ publicProfileView(profile store.ReaderProfile, favorites []store.ProfileFa
 						<p class="profile-tagline">“{ profile.Tagline }”</p>
 					}
 				</div>
-				if len(favorites) > 0 {
+				if hasProfileCover(favorites) {
 					<div class="profile-cover-fan" aria-hidden="true">
 						for i, work := range favorites {
-							if i < 4 {
+							if i < 4 && work.Cover != "" {
 								<img class={ fmt.Sprintf("profile-cover profile-cover-%d", i+1) } src={ asset(work.Cover) } width="400" height="600" alt=""/>
 							}
 						}
@@ -118,14 +130,32 @@ templ profileFavorites(favorites []store.ProfileFavoritesByUserIDRow) {
 			<div class="profile-favorites-grid">
 				for _, work := range favorites {
 					<article class="profile-work-card">
-						<a href={ templ.URL("/series/" + work.WorkSlug) } class="profile-work-cover"><img src={ asset(work.Cover) } alt={ work.WorkTitle + " — illustrated cover" } width="400" height="600" loading="lazy"/><span>{ work.Genre }</span></a>
-						<h3><a href={ templ.URL("/series/" + work.WorkSlug) }>{ work.WorkTitle }</a></h3>
+						if work.HasHostedEdition {
+							<a href={ templ.URL("/series/" + work.WorkSlug) } class="profile-work-link">@profileWorkCover(work)</a>
+							<h3><a href={ templ.URL("/series/" + work.WorkSlug) }>{ work.WorkTitle }</a></h3>
+						} else {
+							<div class="profile-work-link">@profileWorkCover(work)</div>
+							<h3>{ work.WorkTitle }</h3>
+						}
 						<p>{ work.Creator }</p>
 					</article>
 				}
 			</div>
 		}
 	</section>
+}
+
+templ profileWorkCover(work store.ProfileFavoritesByUserIDRow) {
+	<div class="profile-work-cover">
+		if work.Cover != "" {
+			<img src={ asset(work.Cover) } alt={ work.WorkTitle + " — illustrated cover" } width="400" height="600" loading="lazy"/>
+		} else {
+			<div class="profile-work-placeholder" role="img" aria-label={ work.WorkTitle + " — cover artwork unavailable" }><span>{ work.WorkTitle }</span></div>
+		}
+		if work.Genre != "" {
+			<span>{ work.Genre }</span>
+		}
+	</div>
 }
 
 templ profileMilestones(stats store.ProfileReadingStatsRow) {

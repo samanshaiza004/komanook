@@ -51,27 +51,60 @@ INSERT INTO profile_favorites (user_id, work_id, position) VALUES ($1,$2,$3);
 
 -- name: ProfileFavoritesByUserID :many
 SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
-       s.creator, s.cover, s.genre, f.position
+       w.creator, w.cover, w.genre, f.position,
+       EXISTS (SELECT 1 FROM series s WHERE s.work_id = w.id AND s.published) AS has_hosted_edition
 FROM profile_favorites f
 JOIN works w ON w.id = f.work_id
-JOIN series s ON s.work_id = w.id AND s.published = true
 WHERE f.user_id = $1
 ORDER BY f.position;
 
--- name: PublishedWorks :many
+-- name: CatalogWorks :many
 SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
-       s.creator, s.cover, s.genre
+       w.creator, w.cover, w.genre,
+       EXISTS (SELECT 1 FROM series s WHERE s.work_id = w.id AND s.published) AS has_hosted_edition
 FROM works w
-JOIN series s ON s.work_id = w.id AND s.published = true
 ORDER BY w.title, w.id
 LIMIT 100;
 
--- name: PublishedWorkByID :one
+-- name: CatalogWorkByID :one
 SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
-       s.creator, s.cover, s.genre
+       w.creator, w.cover, w.genre,
+       EXISTS (SELECT 1 FROM series s WHERE s.work_id = w.id AND s.published) AS has_hosted_edition
 FROM works w
-JOIN series s ON s.work_id = w.id AND s.published = true
 WHERE w.id = $1;
+
+-- name: LibraryWorksByUserID :many
+SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
+       w.creator, w.cover, w.genre,
+       EXISTS (SELECT 1 FROM series s WHERE s.work_id = w.id AND s.published) AS has_hosted_edition,
+       COALESCE(l.status, '')::text AS library_status,
+       l.rating,
+       CASE WHEN l.user_id IS NULL THEN false ELSE true END AS tracked
+FROM works w
+LEFT JOIN reader_library l ON l.work_id = w.id AND l.user_id = $1
+WHERE sqlc.arg(search)::text = ''
+   OR w.title ILIKE '%' || sqlc.arg(search)::text || '%'
+   OR w.creator ILIKE '%' || sqlc.arg(search)::text || '%'
+ORDER BY (l.user_id IS NOT NULL) DESC, w.title, w.id
+LIMIT 100;
+
+-- name: LibraryCountsByUserID :one
+SELECT count(*)::integer AS tracked,
+       count(*) FILTER (WHERE status = 'reading')::integer AS reading,
+       count(*) FILTER (WHERE status = 'completed')::integer AS completed
+FROM reader_library
+WHERE user_id = $1;
+
+-- name: SaveLibraryEntry :exec
+INSERT INTO reader_library (user_id, work_id, status, rating)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (user_id, work_id) DO UPDATE SET
+    status = EXCLUDED.status,
+    rating = EXCLUDED.rating,
+    updated_at = now();
+
+-- name: DeleteLibraryEntry :exec
+DELETE FROM reader_library WHERE user_id = $1 AND work_id = $2;
 
 -- name: ProfileReadingStats :one
 WITH chapter_pages AS (

@@ -246,6 +246,66 @@ test("readers can shape a responsive, crawlable manga profile", async ({
     path: testInfo.outputPath("profile.png"),
     fullPage: true,
   });
+
+  await page.goto("/account/profile");
+  await page.getByLabel("Who can see your profile?").selectOption("private");
+  await page.getByRole("button", { name: "Save profile" }).click();
+  await expect(page).toHaveURL(/\/account\/profile\?saved=1$/);
+  const privateResponse = await page.goto(`/u/${handle}`);
+  expect(privateResponse.status()).toBe(404);
+  await expect(page.locator("body")).not.toContainText("Paper Ghost");
+  await page.goto("/account/profile/preview");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Private preview" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Paper Ghost" }),
+  ).toBeVisible();
+});
+
+test("readers can keep private status and rating for a catalog Work", async ({
+  page,
+}, testInfo) => {
+  await signIn(page, readerEmail(testInfo));
+  await page.goto("/account/library");
+  await expect(
+    page.getByRole("heading", { name: "Your manga library" }),
+  ).toBeVisible();
+
+  const work = page
+    .locator(".library-card")
+    .filter({ has: page.getByRole("heading", { name: "The Last Signal" }) });
+  await expect(work).toHaveCount(1);
+  await work.getByLabel("Reading status").selectOption("reading");
+  await work.getByLabel("Your rating").selectOption("8");
+  await work.getByRole("button", { name: "Add to library" }).click();
+  await expect(page).toHaveURL(/\/account\/library\?saved=/);
+  await expect(work.getByLabel("Reading status")).toHaveValue("reading");
+  await expect(work.getByLabel("Your rating")).toHaveValue("8");
+  await expect(work.locator(".library-status-ribbon")).toHaveText(
+    "Currently reading",
+  );
+  await expect(page.locator(".library-counts")).toContainText("1");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  const results = await new AxeBuilder({ page })
+    .setLegacyMode(true)
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(results.violations).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath("library.png"),
+    fullPage: true,
+  });
+
+  await page.reload();
+  await expect(work.getByLabel("Reading status")).toHaveValue("reading");
+  await work.getByRole("button", { name: "Remove from library" }).click();
+  await expect(page).toHaveURL(/\/account\/library\?removed=/);
+  await expect(work.getByLabel("Reading status")).toHaveValue("");
 });
 
 test("guest progress stays separate and imports without replacing account bookmarks", async ({

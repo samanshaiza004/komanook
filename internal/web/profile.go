@@ -31,11 +31,13 @@ type profileForm struct {
 }
 
 type profileEditorData struct {
-	Token string
-	Form  profileForm
-	Works []store.PublishedWorksRow
-	Error string
-	Saved bool
+	Token         string
+	Form          profileForm
+	Works         []store.CatalogWorksRow
+	Error         string
+	Saved         bool
+	HasProfile    bool
+	PreviewNeeded bool
 }
 
 func defaultProfileForm() profileForm {
@@ -74,17 +76,55 @@ func (a *App) profileSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		form.Favorites = favoriteIDs(favorites)
 	}
-	works, err := a.Q.PublishedWorks(r.Context())
+	works, err := a.Q.CatalogWorks(r.Context())
 	if err != nil {
 		a.failure(w, r, err)
 		return
 	}
 	a.render(w, r, profileEditorView(profileEditorData{
-		Token: nosurf.Token(r),
-		Form:  form,
-		Works: works,
-		Saved: r.URL.Query().Get("saved") == "1",
+		Token:         nosurf.Token(r),
+		Form:          form,
+		Works:         works,
+		Saved:         r.URL.Query().Get("saved") == "1",
+		HasProfile:    profile.UserID != 0,
+		PreviewNeeded: r.URL.Query().Get("preview") == "save",
 	}))
+}
+
+func (a *App) profilePreview(w http.ResponseWriter, r *http.Request) {
+	u, err := a.currentUser(r)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if err != nil {
+		a.failure(w, r, err)
+		return
+	}
+	profile, err := a.Q.ProfileByUserID(r.Context(), u.ID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Redirect(w, r, "/account/profile?preview=save", http.StatusSeeOther)
+		return
+	}
+	if err != nil {
+		a.failure(w, r, err)
+		return
+	}
+	favorites, err := a.Q.ProfileFavoritesByUserID(r.Context(), u.ID)
+	if err != nil {
+		a.failure(w, r, err)
+		return
+	}
+	stats := store.ProfileReadingStatsRow{}
+	if profile.ShowReadingStats {
+		stats, err = a.Q.ProfileReadingStats(r.Context(), u.ID)
+		if err != nil {
+			a.failure(w, r, err)
+			return
+		}
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	a.render(w, r, publicProfileView(profile, favorites, stats, true))
 }
 
 func (a *App) saveProfile(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +138,7 @@ func (a *App) saveProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	form := profileFormFromRequest(r)
-	works, err := a.Q.PublishedWorks(r.Context())
+	works, err := a.Q.CatalogWorks(r.Context())
 	if err != nil {
 		a.failure(w, r, err)
 		return
@@ -148,7 +188,7 @@ func (a *App) saveProfile(w http.ResponseWriter, r *http.Request) {
 			a.failure(w, r, errors.New("validated profile favorite became invalid"))
 			return
 		}
-		if _, err = q.PublishedWorkByID(r.Context(), workID); errors.Is(err, pgx.ErrNoRows) {
+		if _, err = q.CatalogWorkByID(r.Context(), workID); errors.Is(err, pgx.ErrNoRows) {
 			a.renderStatus(w, r, http.StatusUnprocessableEntity, profileEditorView(profileEditorData{Token: nosurf.Token(r), Form: form, Works: works, Error: "Choose manga from the available catalog."}))
 			return
 		} else if err != nil {
@@ -191,8 +231,17 @@ func (a *App) publicProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	w.Header().Set("Cache-Control", "public, max-age=0, s-maxage=10")
-	a.render(w, r, publicProfileView(profile, favorites, stats))
+	w.Header().Set("Cache-Control", "private, no-store")
+	a.render(w, r, publicProfileView(profile, favorites, stats, false))
+}
+
+func hasProfileCover(favorites []store.ProfileFavoritesByUserIDRow) bool {
+	for _, favorite := range favorites {
+		if favorite.Cover != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func profileFormFromRecord(profile store.ReaderProfile) profileForm {

@@ -17,6 +17,8 @@ Body: system sans (`system-ui`, platform UI fonts), avoiding a remote font reque
 
 Reader profiles extend the same palette with three constrained, high-contrast presets: indigo shelf (`#3730a3` with white text), night reader (`#121627` with `#f0f2ff` text), and coral print (`#fd927b` with `#1c2444` text). Profiles use the same system sans so artwork and the reader's own words carry the identity. The signature is an overlapping fan of chosen covers beside the reader's name; the complete ordered favorites appear as individual cover cards below. At narrow widths the fan stacks below the identity and favorites use two columns. Motion stays still.
 
+The personal library uses a cover-led shelf: each catalog Work gets its own artwork or a designed title fallback, with its status and rating controls attached to the same card. Three plain counts orient the reader without turning progress into a score. The library is a private, responsive, server-rendered page; status and rating changes use native forms and never become public activity by default. On narrow screens cards become a single column with controls stacked beneath the work identity.
+
 Dark mode follows the system using CSS. Reader mode changes do not change the document's text direction; RTL is page navigation semantics only. At 375px, navigation wraps cleanly, catalog covers use two columns and reader controls stack. Color is never the sole state indicator. Descriptive alternative text includes comic dialogue. Auth errors identify recovery actions without revealing account existence.
 
 ## Component approach
@@ -33,11 +35,14 @@ Tailwind CSS v4 compiles locally; the product's semantic CSS and custom tokens o
 | shadcn-derived primitive | button HTML and classes | no scripts, no global listeners or mutation controller |
 | reader module | `[data-reader]` | exclusive image visibility/sources, mode and progress; never patched by Datastar |
 | account module | `[data-progress-import]` | reads only the guest progress namespace; sends a bounded import only after an explicit button action |
-| profile templates | public `/u/{handle}` and private `/account/profile` | server owns profile fields and ordered Work references; public response includes only opt-in aggregate milestones; native HTML forms submit every edit with CSRF protection |
+| profile templates | public `/u/{handle}`, private `/account/profile`, owner-only `/account/profile/preview` | server owns profile fields and ordered Work references; public response includes only opt-in aggregate milestones; every profile response is `no-store`; preview reuses the public layout behind the owner session; native HTML forms submit edits with CSRF protection |
+| library templates | private `/account/library` and `POST /account/library/{work}` | server scopes statuses and ratings to the session account and canonical Work; native forms own validation and submission; no Datastar patch or reader controller touches the page |
 | browser | native forms, details, links | preserve default validation and keyboard behavior |
 
 Load MannerHTML's tabs entry only where needed; the custom element handles connection/disconnection. Do not register the same tab with a shadcn or Datastar controller. There is no automatic MannerHTML structural mutation reconciliation; future changes must call its `refresh()` deliberately or replace the entire custom element and restore focus. Current patches avoid this entirely. Datastar search keeps focus in its persistent form; a polite live region inside results announces the result count. Browser tests assert focus and MannerHTML keyboard behavior after a Datastar patch on the series page's related-story area.
 
 The profile editor uses native selects, text inputs, a checkbox, and one CSRF-protected form. Showcase order is constrained; favorite order is the explicit order of six selectable Work slots. Profile pages have no client controller, arbitrary user styling, user-uploaded artwork, or chapter-position disclosure.
+
+The profile preview uses the same composition as the public profile and adds a private-preview notice. It remains owner-only and uncached. Library cards pair cover art with labeled status and rating selects; all IDs are unique per Work, forms remain independently focusable, and successful saves use a normal redirect. A cover is linked to the hosted series only while a published edition exists; an unhosted Work remains selectable and trackable as catalog content.
 
 Datastar's default evaluator requires CSP `unsafe-eval`; scripts otherwise come only from local static assets, with no inline scripts, remote CDNs, raw user HTML, or unsafe-inline script permission. Consider the upstream CSP build if adoption broadens. The reader does not require this exception and remains replaceable.
