@@ -70,27 +70,59 @@
       "profile": "desktop",
       "route": "/catalog",
       "median": {
-        "ttfbMs": 1.300000011920929,
+        "ttfbMs": 1.5,
         "lcpMs": 76,
-        "loadMs": 66.20000004768372,
+        "loadMs": 62.5,
         "cls": 0,
         "transferBytes": 103182,
         "requests": 7
       },
       "runs": [
         {
-          "ttfbMs": 2.800000011920929,
-          "lcpMs": 88,
-          "domContentLoadedMs": 13,
-          "loadMs": 66.20000004768372,
+          "ttfbMs": 2.300000011920929,
+          "lcpMs": 96,
+          "domContentLoadedMs": 85.20000004768372,
+          "loadMs": 85.40000003576279,
           "cls": 0,
           "requests": 7,
           "transferBytes": 103182,
           "images": [
             {
+              "path": "mark.svg",
+              "durationMs": 5.199999988079071,
+              "bytes": 233
+            },
+            {
+              "path": "between-tides-cover.webp",
+              "durationMs": 3.399999976158142,
+              "bytes": 10060
+            },
+            {
               "path": "orbit-post-cover.webp",
-              "durationMs": 2.599999964237213,
+              "durationMs": 3.699999988079071,
               "bytes": 9662
+            },
+            {
+              "path": "last-signal-cover.webp",
+              "durationMs": 3.100000023841858,
+              "bytes": 10378
+            }
+          ],
+          "loadedImages": 7
+        },
+        {
+          "ttfbMs": 1.300000011920929,
+          "lcpMs": 76,
+          "domContentLoadedMs": 62.5,
+          "loadMs": 62.5,
+          "cls": 0,
+          "requests": 7,
+          "transferBytes": 103182,
+          "images": [
+            {
+              "path": "mark.svg",
+              "durationMs": 3.900000035762787,
+              "bytes": 233
             },
             {
               "path": "last-signal-cover.webp",
@@ -99,77 +131,45 @@
             },
             {
               "path": "between-tides-cover.webp",
-              "durationMs": 2.799999952316284,
+              "durationMs": 2.899999976158142,
               "bytes": 10060
             },
             {
-              "path": "mark.svg",
+              "path": "orbit-post-cover.webp",
               "durationMs": 3.599999964237213,
-              "bytes": 233
-            }
-          ],
-          "loadedImages": 7
-        },
-        {
-          "ttfbMs": 1.199999988079071,
-          "lcpMs": 72,
-          "domContentLoadedMs": 64.80000001192093,
-          "loadMs": 65,
-          "cls": 0,
-          "requests": 7,
-          "transferBytes": 103182,
-          "images": [
-            {
-              "path": "mark.svg",
-              "durationMs": 3.399999976158142,
-              "bytes": 233
-            },
-            {
-              "path": "last-signal-cover.webp",
-              "durationMs": 2.400000035762787,
-              "bytes": 10378
-            },
-            {
-              "path": "between-tides-cover.webp",
-              "durationMs": 2.900000035762787,
-              "bytes": 10060
-            },
-            {
-              "path": "orbit-post-cover.webp",
-              "durationMs": 3,
               "bytes": 9662
             }
           ],
           "loadedImages": 7
         },
         {
-          "ttfbMs": 1.300000011920929,
+          "ttfbMs": 1.5,
           "lcpMs": 76,
-          "domContentLoadedMs": 68.10000002384186,
-          "loadMs": 68.20000004768372,
+          "domContentLoadedMs": 61.80000001192093,
+          "loadMs": 61.80000001192093,
           "cls": 0,
           "requests": 7,
           "transferBytes": 103182,
           "images": [
             {
               "path": "mark.svg",
-              "durationMs": 3.5,
+              "durationMs": 3.800000011920929,
               "bytes": 233
             },
             {
-              "path": "last-signal-cover.webp",
-              "durationMs": 2.599999964237213,
-              "bytes": 10378
+              "path": "between-tides-cover.webp",
+              "durationMs": 3,
+              "bytes": 10060
             },
             {
               "path": "orbit-post-cover.webp",
-              "durationMs": 2.800000011920929,
+              "durationMs": 3.800000011920929,
               "bytes": 9662
             },
             {
-              "path": "between-tides-cover.webp",
-              "durationMs": 3.399999976158142,
-              "bytes": 10060
+              "path": "last-signal-cover.webp",
+              "durationMs": 4.300000011920929,
+              "bytes": 10378
             }
           ],
           "loadedImages": 7
@@ -180,179 +180,55 @@
       "profile": "desktop",
       "route": "/read/1",
       "median": {
-        "ttfbMs": 1.4000000357627869,
+        "ttfbMs": 1.5,
         "lcpMs": 28,
-        "loadMs": 19,
+        "loadMs": 19.899999976158142,
         "cls": 0,
         "transferBytes": 176626,
         "requests": 8
       },
       "runs": [
         {
-          "ttfbMs": 1.4000000357627869,
-          "lcpMs": 28,
-          "domContentLoadedMs": 9.100000023841858,
-          "loadMs": 19,
-          "cls": 0,
-          "requests": 8,
-          "transferBytes": 176626,
-          "images": [
-            {
-              "path": "mark.svg",
-              "durationMs": 2.399999976158142,
-              "bytes": 233
-            },
-            {
-              "path": "last-signal-1.webp",
-              "durationMs": 1.9000000357627869,
-              "bytes": 32780
-            },
-            {
-              "path": "last-signal-4.webp",
-              "durationMs": 2.100000023841858,
-              "bytes": 35226
-            },
-            {
-              "path": "last-signal-3.webp",
-              "durationMs": 2.199999988079071,
-              "bytes": 31472
-            },
-            {
-              "path": "last-signal-2.webp",
-              "durationMs": 2.5,
-              "bytes": 30688
-            }
-          ],
-          "loadedImages": 5,
-          "reader": {
-            "turns": 40,
-            "jsHeapBeforeBytes": 1463596,
-            "jsHeapAfterBytes": 1573060,
-            "jsHeapGrowthBytes": 109464,
-            "dom": {
-              "documents": 2,
-              "nodes": 183,
-              "jsEventListeners": 21
-            },
-            "imageSources": 2
-          },
-          "longChapter": {
-            "pages": 250,
-            "turns": 40,
-            "jsHeapBeforeBytes": 2201268,
-            "jsHeapAfterBytes": 2218896,
-            "jsHeapGrowthBytes": 17628,
-            "dom": {
-              "documents": 1,
-              "nodes": 5120,
-              "jsEventListeners": 37
-            },
-            "imageSources": 3
-          }
-        },
-        {
-          "ttfbMs": 1.4000000357627869,
-          "lcpMs": 28,
-          "domContentLoadedMs": 9.700000047683716,
-          "loadMs": 18.5,
-          "cls": 0,
-          "requests": 8,
-          "transferBytes": 176626,
-          "images": [
-            {
-              "path": "last-signal-1.webp",
-              "durationMs": 1.4000000357627869,
-              "bytes": 32780
-            },
-            {
-              "path": "mark.svg",
-              "durationMs": 2.400000035762787,
-              "bytes": 233
-            },
-            {
-              "path": "last-signal-3.webp",
-              "durationMs": 1.300000011920929,
-              "bytes": 31472
-            },
-            {
-              "path": "last-signal-2.webp",
-              "durationMs": 2,
-              "bytes": 30688
-            },
-            {
-              "path": "last-signal-4.webp",
-              "durationMs": 1.800000011920929,
-              "bytes": 35226
-            }
-          ],
-          "loadedImages": 5,
-          "reader": {
-            "turns": 40,
-            "jsHeapBeforeBytes": 1455028,
-            "jsHeapAfterBytes": 1565140,
-            "jsHeapGrowthBytes": 110112,
-            "dom": {
-              "documents": 2,
-              "nodes": 183,
-              "jsEventListeners": 21
-            },
-            "imageSources": 2
-          },
-          "longChapter": {
-            "pages": 250,
-            "turns": 40,
-            "jsHeapBeforeBytes": 2201008,
-            "jsHeapAfterBytes": 2218796,
-            "jsHeapGrowthBytes": 17788,
-            "dom": {
-              "documents": 1,
-              "nodes": 5120,
-              "jsEventListeners": 37
-            },
-            "imageSources": 3
-          }
-        },
-        {
-          "ttfbMs": 1.4000000357627869,
-          "lcpMs": 28,
-          "domContentLoadedMs": 19.400000035762787,
-          "loadMs": 21.19999998807907,
+          "ttfbMs": 1.5,
+          "lcpMs": 24,
+          "domContentLoadedMs": 19.5,
+          "loadMs": 21.700000047683716,
           "cls": 0.027238389756944443,
           "requests": 8,
           "transferBytes": 176626,
           "images": [
             {
-              "path": "last-signal-1.webp",
-              "durationMs": 3.300000011920929,
-              "bytes": 32780
-            },
-            {
               "path": "mark.svg",
-              "durationMs": 3.800000011920929,
+              "durationMs": 3.300000011920929,
               "bytes": 233
             },
             {
-              "path": "last-signal-3.webp",
-              "durationMs": 2,
-              "bytes": 31472
+              "path": "last-signal-1.webp",
+              "durationMs": 2.300000011920929,
+              "bytes": 32780
             },
             {
               "path": "last-signal-2.webp",
-              "durationMs": 1.9000000357627869,
+              "durationMs": 1.5,
               "bytes": 30688
             },
             {
               "path": "last-signal-4.webp",
-              "durationMs": 2.300000011920929,
+              "durationMs": 1.699999988079071,
               "bytes": 35226
+            },
+            {
+              "path": "last-signal-3.webp",
+              "durationMs": 1.9000000357627869,
+              "bytes": 31472
             }
           ],
           "loadedImages": 5,
           "reader": {
             "turns": 40,
-            "jsHeapBeforeBytes": 1456760,
-            "jsHeapAfterBytes": 1565172,
-            "jsHeapGrowthBytes": 108412,
+            "jsHeapBeforeBytes": 1465312,
+            "jsHeapAfterBytes": 1573076,
+            "jsHeapGrowthBytes": 107764,
             "dom": {
               "documents": 2,
               "nodes": 183,
@@ -363,9 +239,133 @@
           "longChapter": {
             "pages": 250,
             "turns": 40,
-            "jsHeapBeforeBytes": 2201008,
-            "jsHeapAfterBytes": 2218796,
+            "jsHeapBeforeBytes": 2201128,
+            "jsHeapAfterBytes": 2218916,
             "jsHeapGrowthBytes": 17788,
+            "dom": {
+              "documents": 1,
+              "nodes": 5120,
+              "jsEventListeners": 37
+            },
+            "imageSources": 3
+          }
+        },
+        {
+          "ttfbMs": 1.399999976158142,
+          "lcpMs": 28,
+          "domContentLoadedMs": 8.199999988079071,
+          "loadMs": 19.5,
+          "cls": 0,
+          "requests": 8,
+          "transferBytes": 176626,
+          "images": [
+            {
+              "path": "mark.svg",
+              "durationMs": 2.899999976158142,
+              "bytes": 233
+            },
+            {
+              "path": "last-signal-1.webp",
+              "durationMs": 1.699999988079071,
+              "bytes": 32780
+            },
+            {
+              "path": "last-signal-2.webp",
+              "durationMs": 2.100000023841858,
+              "bytes": 30688
+            },
+            {
+              "path": "last-signal-4.webp",
+              "durationMs": 1.699999988079071,
+              "bytes": 35226
+            },
+            {
+              "path": "last-signal-3.webp",
+              "durationMs": 1.800000011920929,
+              "bytes": 31472
+            }
+          ],
+          "loadedImages": 5,
+          "reader": {
+            "turns": 40,
+            "jsHeapBeforeBytes": 1455692,
+            "jsHeapAfterBytes": 1565140,
+            "jsHeapGrowthBytes": 109448,
+            "dom": {
+              "documents": 2,
+              "nodes": 183,
+              "jsEventListeners": 21
+            },
+            "imageSources": 2
+          },
+          "longChapter": {
+            "pages": 250,
+            "turns": 40,
+            "jsHeapBeforeBytes": 2201160,
+            "jsHeapAfterBytes": 2218916,
+            "jsHeapGrowthBytes": 17756,
+            "dom": {
+              "documents": 1,
+              "nodes": 5120,
+              "jsEventListeners": 37
+            },
+            "imageSources": 3
+          }
+        },
+        {
+          "ttfbMs": 1.5,
+          "lcpMs": 28,
+          "domContentLoadedMs": 7.799999952316284,
+          "loadMs": 19.899999976158142,
+          "cls": 0,
+          "requests": 8,
+          "transferBytes": 176626,
+          "images": [
+            {
+              "path": "last-signal-1.webp",
+              "durationMs": 1.899999976158142,
+              "bytes": 32780
+            },
+            {
+              "path": "mark.svg",
+              "durationMs": 3.199999988079071,
+              "bytes": 233
+            },
+            {
+              "path": "last-signal-3.webp",
+              "durationMs": 1.5,
+              "bytes": 31472
+            },
+            {
+              "path": "last-signal-2.webp",
+              "durationMs": 1.5,
+              "bytes": 30688
+            },
+            {
+              "path": "last-signal-4.webp",
+              "durationMs": 2,
+              "bytes": 35226
+            }
+          ],
+          "loadedImages": 5,
+          "reader": {
+            "turns": 40,
+            "jsHeapBeforeBytes": 1455692,
+            "jsHeapAfterBytes": 1565140,
+            "jsHeapGrowthBytes": 109448,
+            "dom": {
+              "documents": 2,
+              "nodes": 183,
+              "jsEventListeners": 21
+            },
+            "imageSources": 2
+          },
+          "longChapter": {
+            "pages": 250,
+            "turns": 40,
+            "jsHeapBeforeBytes": 2201140,
+            "jsHeapAfterBytes": 2218992,
+            "jsHeapGrowthBytes": 17852,
             "dom": {
               "documents": 1,
               "nodes": 5120,
@@ -380,42 +380,74 @@
       "profile": "throttled-mobile",
       "route": "/catalog",
       "median": {
-        "ttfbMs": 1.300000011920929,
-        "lcpMs": 1024,
-        "loadMs": 1022.1000000238419,
+        "ttfbMs": 1.199999988079071,
+        "lcpMs": 1016,
+        "loadMs": 1016.1000000238419,
         "cls": 0,
         "transferBytes": 103182,
         "requests": 7
       },
       "runs": [
         {
-          "ttfbMs": 1.300000011920929,
-          "lcpMs": 1024,
-          "domContentLoadedMs": 1025.199999988079,
-          "loadMs": 1025.199999988079,
+          "ttfbMs": 1.100000023841858,
+          "lcpMs": 1016,
+          "domContentLoadedMs": 1016,
+          "loadMs": 1016.1000000238419,
           "cls": 0,
           "requests": 7,
           "transferBytes": 103182,
           "images": [
             {
               "path": "mark.svg",
-              "durationMs": 180.5,
+              "durationMs": 178.30000001192093,
               "bytes": 233
             },
             {
               "path": "orbit-post-cover.webp",
-              "durationMs": 438.30000001192093,
+              "durationMs": 432.30000001192093,
               "bytes": 9662
             },
             {
+              "path": "between-tides-cover.webp",
+              "durationMs": 445.30000001192093,
+              "bytes": 10060
+            },
+            {
               "path": "last-signal-cover.webp",
-              "durationMs": 445.7000000476837,
+              "durationMs": 452.80000001192093,
               "bytes": 10378
+            }
+          ],
+          "loadedImages": 7
+        },
+        {
+          "ttfbMs": 1.399999976158142,
+          "lcpMs": 1036,
+          "domContentLoadedMs": 1034.8999999761581,
+          "loadMs": 1035.199999988079,
+          "cls": 0,
+          "requests": 7,
+          "transferBytes": 103182,
+          "images": [
+            {
+              "path": "mark.svg",
+              "durationMs": 182.30000001192093,
+              "bytes": 233
+            },
+            {
+              "path": "orbit-post-cover.webp",
+              "durationMs": 441,
+              "bytes": 9662
             },
             {
               "path": "between-tides-cover.webp",
-              "durationMs": 453.60000002384186,
+              "durationMs": 456.60000002384186,
               "bytes": 10060
+            },
+            {
+              "path": "last-signal-cover.webp",
+              "durationMs": 449.39999997615814,
+              "bytes": 10378
             }
           ],
           "loadedImages": 7
@@ -423,63 +455,31 @@
         {
           "ttfbMs": 1.199999988079071,
           "lcpMs": 1016,
-          "domContentLoadedMs": 1022.1000000238419,
-          "loadMs": 1022.1000000238419,
+          "domContentLoadedMs": 1016,
+          "loadMs": 1016,
           "cls": 0,
           "requests": 7,
           "transferBytes": 103182,
           "images": [
             {
               "path": "mark.svg",
-              "durationMs": 170.69999998807907,
-              "bytes": 233
-            },
-            {
-              "path": "between-tides-cover.webp",
-              "durationMs": 438.69999998807907,
-              "bytes": 10060
-            },
-            {
-              "path": "orbit-post-cover.webp",
-              "durationMs": 431.5,
-              "bytes": 9662
-            },
-            {
-              "path": "last-signal-cover.webp",
-              "durationMs": 446.9000000357628,
-              "bytes": 10378
-            }
-          ],
-          "loadedImages": 7
-        },
-        {
-          "ttfbMs": 1.699999988079071,
-          "lcpMs": 1028,
-          "domContentLoadedMs": 1016.6000000238419,
-          "loadMs": 1016.6999999880791,
-          "cls": 0,
-          "requests": 7,
-          "transferBytes": 103182,
-          "images": [
-            {
-              "path": "mark.svg",
-              "durationMs": 214.89999997615814,
+              "durationMs": 180.9000000357628,
               "bytes": 233
             },
             {
               "path": "orbit-post-cover.webp",
-              "durationMs": 418.89999997615814,
+              "durationMs": 433.10000002384186,
               "bytes": 9662
             },
             {
-              "path": "between-tides-cover.webp",
-              "durationMs": 447.0999999642372,
-              "bytes": 10060
+              "path": "last-signal-cover.webp",
+              "durationMs": 446.60000002384186,
+              "bytes": 10378
             },
             {
-              "path": "last-signal-cover.webp",
-              "durationMs": 453.19999998807907,
-              "bytes": 10378
+              "path": "between-tides-cover.webp",
+              "durationMs": 452.69999998807907,
+              "bytes": 10060
             }
           ],
           "loadedImages": 7
@@ -490,58 +490,53 @@
       "profile": "throttled-mobile",
       "route": "/read/1",
       "median": {
-        "ttfbMs": 1.5999999642372131,
-        "lcpMs": 780,
-        "loadMs": 774.3999999761581,
+        "ttfbMs": 1.4000000357627869,
+        "lcpMs": 764,
+        "loadMs": 761,
         "cls": 0,
         "transferBytes": 141100,
         "requests": 7
       },
       "runs": [
         {
-          "ttfbMs": 1.5999999642372131,
+          "ttfbMs": 1.699999988079071,
           "lcpMs": 772,
-          "domContentLoadedMs": 749.5999999642372,
-          "loadMs": 761.6999999880791,
+          "domContentLoadedMs": 703.1000000238419,
+          "loadMs": 767.1999999880791,
           "cls": 0,
-          "requests": 8,
-          "transferBytes": 176626,
+          "requests": 7,
+          "transferBytes": 141100,
           "images": [
             {
               "path": "mark.svg",
-              "durationMs": 173.5,
+              "durationMs": 183.10000002384186,
               "bytes": 233
             },
             {
               "path": "last-signal-1.webp",
-              "durationMs": 529.3000000119209,
+              "durationMs": 536.8999999761581,
               "bytes": 32780
             },
             {
               "path": "last-signal-2.webp",
-              "durationMs": 610.0999999642372,
+              "durationMs": 460.5,
               "bytes": 30688
             },
             {
               "path": "last-signal-3.webp",
-              "durationMs": 631.1999999880791,
+              "durationMs": 477.80000001192093,
               "bytes": 31472
-            },
-            {
-              "path": "last-signal-4.webp",
-              "durationMs": 654.3000000119209,
-              "bytes": 35226
             }
           ],
-          "loadedImages": 5,
+          "loadedImages": 4,
           "reader": {
             "turns": 40,
-            "jsHeapBeforeBytes": 1509336,
-            "jsHeapAfterBytes": 1616556,
+            "jsHeapBeforeBytes": 1509328,
+            "jsHeapAfterBytes": 1616548,
             "jsHeapGrowthBytes": 107220,
             "dom": {
               "documents": 2,
-              "nodes": 183,
+              "nodes": 179,
               "jsEventListeners": 21
             },
             "imageSources": 2
@@ -549,9 +544,9 @@
           "longChapter": {
             "pages": 250,
             "turns": 40,
-            "jsHeapBeforeBytes": 2214888,
-            "jsHeapAfterBytes": 2232700,
-            "jsHeapGrowthBytes": 17812,
+            "jsHeapBeforeBytes": 2214704,
+            "jsHeapAfterBytes": 2232496,
+            "jsHeapGrowthBytes": 17792,
             "dom": {
               "documents": 1,
               "nodes": 5120,
@@ -561,32 +556,32 @@
           }
         },
         {
-          "ttfbMs": 2.200000047683716,
-          "lcpMs": 784,
-          "domContentLoadedMs": 716.9000000357628,
-          "loadMs": 777.7000000476837,
+          "ttfbMs": 1.300000011920929,
+          "lcpMs": 764,
+          "domContentLoadedMs": 703.5,
+          "loadMs": 761,
           "cls": 0,
           "requests": 7,
           "transferBytes": 141100,
           "images": [
             {
               "path": "mark.svg",
-              "durationMs": 191.80000001192093,
+              "durationMs": 180.10000002384186,
               "bytes": 233
             },
             {
               "path": "last-signal-1.webp",
-              "durationMs": 540.3999999761581,
+              "durationMs": 536.8000000119209,
               "bytes": 32780
             },
             {
               "path": "last-signal-2.webp",
-              "durationMs": 471,
+              "durationMs": 459,
               "bytes": 30688
             },
             {
               "path": "last-signal-3.webp",
-              "durationMs": 478.19999998807907,
+              "durationMs": 473.39999997615814,
               "bytes": 31472
             }
           ],
@@ -606,9 +601,9 @@
           "longChapter": {
             "pages": 250,
             "turns": 40,
-            "jsHeapBeforeBytes": 2214824,
-            "jsHeapAfterBytes": 2232616,
-            "jsHeapGrowthBytes": 17792,
+            "jsHeapBeforeBytes": 2214704,
+            "jsHeapAfterBytes": 2232652,
+            "jsHeapGrowthBytes": 17948,
             "dom": {
               "documents": 1,
               "nodes": 5120,
@@ -618,41 +613,41 @@
           }
         },
         {
-          "ttfbMs": 1.399999976158142,
-          "lcpMs": 780,
-          "domContentLoadedMs": 707.1000000238419,
-          "loadMs": 774.3999999761581,
+          "ttfbMs": 1.4000000357627869,
+          "lcpMs": 752,
+          "domContentLoadedMs": 695.1000000238419,
+          "loadMs": 749.4000000357628,
           "cls": 0,
           "requests": 7,
           "transferBytes": 141100,
           "images": [
             {
               "path": "mark.svg",
-              "durationMs": 179.10000002384186,
+              "durationMs": 175.89999997615814,
               "bytes": 233
             },
             {
               "path": "last-signal-1.webp",
-              "durationMs": 533.9000000357628,
+              "durationMs": 533.3000000119209,
               "bytes": 32780
             },
             {
               "path": "last-signal-2.webp",
-              "durationMs": 469.19999998807907,
+              "durationMs": 465.5,
               "bytes": 30688
             },
             {
               "path": "last-signal-3.webp",
-              "durationMs": 475.69999998807907,
+              "durationMs": 477.69999998807907,
               "bytes": 31472
             }
           ],
           "loadedImages": 4,
           "reader": {
             "turns": 40,
-            "jsHeapBeforeBytes": 1499164,
-            "jsHeapAfterBytes": 1608612,
-            "jsHeapGrowthBytes": 109448,
+            "jsHeapBeforeBytes": 1500720,
+            "jsHeapAfterBytes": 1608588,
+            "jsHeapGrowthBytes": 107868,
             "dom": {
               "documents": 2,
               "nodes": 183,

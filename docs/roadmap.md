@@ -6,7 +6,7 @@ Independent Go/templ app, pinned build tooling, PostgreSQL schema/sqlc queries, 
 
 ## 0.1.1: foundation acceptance
 
-The original foundation gates were completed and the latest remote run at `e3dce88` was green: deterministic Tailwind output, isolated guest/account progress, explicit import, a 250-page reader stress fixture, and CI verification. The reader-profile schema and routes in this update still need a green CI run on their own commit before this iteration is accepted.
+The original foundation gates were completed and the latest remote run at `e3dce88` was green: deterministic Tailwind output, isolated guest/account progress, explicit import, a 250-page reader stress fixture, and CI verification. Apply the same gate to reader-profile changes: require a green GitHub Actions run on the exact commit before accepting the iteration. Local results complement but do not replace CI.
 
 ## 0.1 identity: first profile slice
 

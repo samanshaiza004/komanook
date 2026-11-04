@@ -243,7 +243,7 @@ test("readers can shape a responsive, crawlable manga profile", async ({
     .analyze();
   expect(results.violations).toEqual([]);
   await page.screenshot({
-    path: `/private/tmp/komanook-profile-${testInfo.project.name}.png`,
+    path: testInfo.outputPath("profile.png"),
     fullPage: true,
   });
 });
