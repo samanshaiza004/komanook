@@ -51,6 +51,7 @@ jobs:
           ./bin/komanook seed
           printf '%s\n' 'a quiet place to read' | ./bin/komanook user --email reader@komanook.test
           printf '%s\n' 'a quiet place to work' | ./bin/komanook user --email operator@komanook.test --role admin
+          mkdir -p "$MEDIA_DIR"
           ./bin/komanook serve > .data/ci-server.log 2>&1 &
           for attempt in $(seq 1 50); do
             if curl -fsS http://localhost:8080/health/ready; then exit 0; fi
