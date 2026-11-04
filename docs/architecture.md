@@ -31,6 +31,8 @@ SCS owns opaque random session tokens, persistence, idle/absolute expiration, re
 
 Public registration, password reset, email changes, MFA and federation are deferred. This is a real invitation-only login foundation, not a complete consumer identity product. Before public signup, adopt an established OIDC identity service or add vetted lifecycle workflows and transactional email, verification, abuse controls, and recovery tests. Do not improvise token cryptography. Revoke sessions on operator account disable/reset through the account version field; every authenticated session stores that version.
 
+Reader profiles are separate records keyed by `user_id`; public handles are opt-in and profiles are private by default. The public `/u/{handle}` route reads only a profile whose owner is enabled and whose visibility is public. It never loads the viewer session, emits a cookie, or includes account email or per-chapter progress. Reading milestones are coarse aggregates derived from saved positions and require an explicit profile setting. The profile editor is private, no-store and CSRF-protected; writes use the session's user ID, not a form-supplied owner. Handles, theme names, showcase order and favorite count are bounded by application validation and database constraints. Profiles contain structured fields only: no arbitrary HTML/CSS and no user-uploaded artwork. Public profile HTML has a 10-second shared-cache lifetime so switching to private has a short, bounded edge-cache delay. The profile picker lists at most 100 local Works; add searchable selection before expanding the catalog.
+
 ## Reader and progress
 
 Reader HTML contains a crawlable, accessible ordered set of images with dimensions and descriptive transcripts. Without JS it is a continuous strip. With JS: continuous vertical, paginated LTR/RTL, explicit next/previous controls, Arrow keys/Home/End, mode selection, page announcements, and a bounded image window. The first image is eager; later pages use browser lazy loading and async decode. In paginated mode only current/adjacent image sources stay attached. Observe actual visible pages in vertical mode. Controls and text fields keep their native keyboard behavior.
@@ -39,13 +41,13 @@ The replaceable reader has no Datastar/MannerHTML dependency and lives outside t
 
 ## Work, edition and hosted chapter
 
-The current `series` row is a useful fixture and shelf detail for the original, single-edition sample stories. Keep it that narrow; it is not yet a canonical identity for all publications. Before adding universal tracking or creator profiles, model three distinct concepts:
+The current `works` table gives each manga a canonical identity for personal curation. The existing `series` row is now the single hosted edition for each original sample Work; chapters, pages, and reading progress remain attached to that edition. The pilot enforces one hosted series per Work while it has no second edition, but favorites already reference the Work identity.
 
-- A **Work** is the language-independent manga, manhwa or webcomic people recognize and track.
+- A **Work** is the manga, manhwa or webcomic people recognize and collect.
 - An **Edition** is a language, publisher, translation, format or materially revised release of a Work. Creator credits attach to Works or Editions through ordered, role-bearing relationships rather than one display-name string.
 - A **hosted chapter** is a specific chapter edition that Komanook has permission to distribute. It owns the rights grant and evidence needed to publish: permitted territories, dates, attribution and the immutable page manifest. Publication and revocation apply to this hosted copy; image processing alone grants no right to serve it.
 
-Reader position belongs to an edition's chapter so translations and page order remain distinct. A future personal library can follow the canonical Work, with the chosen Edition recorded separately. The existing MangaDex read-through remains an external source and cannot be promoted into a Komanook hosted chapter without an explicit rights grant. Do not migrate the pilot schema until the first licensed content and tracking use cases establish the required fields.
+Reader position belongs to an edition's chapter so translations and page order remain distinct. A personal library can follow the canonical Work and retain a chosen Edition separately. The pilot Work contains only a stable slug and title; source identifiers, multiple edition rows, creator identities, and relationship types will be added when authorized catalog sources and tracking needs establish their fields. The existing MangaDex read-through remains an external source and cannot be promoted into a Komanook hosted chapter without an explicit rights grant.
 
 ## Media and jobs
 

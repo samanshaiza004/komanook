@@ -1,6 +1,6 @@
 # Komanook
 
-A small Go foundation for an independent manga, manhwa and webcomic reading platform. Server-rendered catalog and series pages, an independent reader, real PostgreSQL account progress, invitation-only login, private image normalization, and a MangaDex API read-through for community scanlations. Komanook does not scrape or store MangaDex chapter images. No SPA, Redis or hosted identity service is required to run the slice.
+A small Go foundation for an independent manga, manhwa and webcomic reading platform. Server-rendered catalog and series pages, an independent reader, real PostgreSQL account progress, invitation-only login, private image normalization, and an opt-in reader profile with an ordered shelf of favorite Works. Komanook does not scrape or store MangaDex chapter images. No SPA, Redis or hosted identity service is required to run the slice.
 
 ![Komanook catalog](docs/screenshots/desktop-catalog.png)
 
@@ -21,6 +21,10 @@ Open [Komanook locally](http://localhost:8080). The helper initializes a persist
 | `operator@komanook.test` | `a quiet place to work` | Also submit private image-processing jobs |
 
 These accounts exist only because the local helper explicitly provisions them. The production app has no built-in accounts or passwords. Restarting the local helper resets fixture passwords and revokes their previous sessions. Read all samples without signing in; guest progress stays in a separate device namespace. Signed-in progress has its own per-account device namespace and is also saved to PostgreSQL. On the account page, you can explicitly import guest bookmarks; existing account bookmarks are kept.
+
+Sign in and choose **Your manga profile** to create a private profile. Add a handle, note, favorite Works and a theme, then switch visibility to public when you're ready to share `/u/{handle}`. Reading milestones stay off until enabled. Public profiles show no email or chapter-by-chapter history; favorites refer to canonical Work records rather than asserting reading status.
+
+Profiles are an invitation-only pilot feature. Reporting, blocking, and public-community moderation tools are not implemented, so account provisioning remains restricted.
 
 ## MangaDex community chapters
 
@@ -98,6 +102,7 @@ The private admin upload action returns a job ID and status URL. Poll `GET /admi
 - [Source-based foundation comparison](docs/research.md)
 - [Design tokens and DOM ownership](docs/design-system.md)
 - [Prioritized roadmap](docs/roadmap.md)
+- [Reader identity and Work/Edition vocabulary](CONTEXT.md)
 - [Performance evidence](docs/performance.md)
 - [Agent conventions](AGENTS.md)
 - [Original CC0 sample rights](content/LICENSE.md)

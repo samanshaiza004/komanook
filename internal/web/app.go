@@ -78,6 +78,7 @@ func (a *App) Handler() http.Handler {
 	public.HandleFunc("GET /{$}", a.catalog)
 	public.HandleFunc("GET /catalog", a.catalog)
 	public.HandleFunc("GET /series/{slug}", a.series)
+	public.HandleFunc("GET /u/{handle}", a.publicProfile)
 	public.HandleFunc("GET /mangadex", a.mangaDexSearch)
 	public.HandleFunc("GET /mangadex/manga/{id}", a.mangaDexManga)
 	public.HandleFunc("GET /mangadex/read/{id}", a.mangaDexRead)
@@ -86,6 +87,8 @@ func (a *App) Handler() http.Handler {
 	private.HandleFunc("POST /login", a.login)
 	private.HandleFunc("POST /logout", a.logout)
 	private.HandleFunc("GET /account", a.account)
+	private.HandleFunc("GET /account/profile", a.profileSettings)
+	private.HandleFunc("POST /account/profile", a.saveProfile)
 	private.HandleFunc("GET /read/{chapter}", a.reader)
 	private.HandleFunc("GET /api/progress/{chapter}", a.getProgress)
 	private.HandleFunc("POST /api/progress/{chapter}", a.saveProgress)
@@ -103,6 +106,9 @@ func (a *App) Handler() http.Handler {
 	}))
 	public.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "private, no-store")
+		if r.Method == http.MethodPost && r.URL.Path == "/account/profile" {
+			r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
+		}
 		csrf.ServeHTTP(w, r)
 	}))
 	return a.middleware(public)
@@ -121,6 +127,16 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, c templ.Component) 
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(b.Bytes())
+}
+func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, c templ.Component) {
+	var b bytes.Buffer
+	if err := c.Render(r.Context(), &b); err != nil {
+		a.failure(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
 	_, _ = w.Write(b.Bytes())
 }
 func (a *App) failure(w http.ResponseWriter, r *http.Request, err error) {

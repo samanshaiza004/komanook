@@ -9,9 +9,15 @@ async function openReader(page) {
 async function blurControls(page) {
   await page.locator("#main h1").click();
 }
-async function signIn(page) {
+function readerEmail(testInfo) {
+  return testInfo.project.name === "mobile"
+    ? "reader-mobile@komanook.test"
+    : "reader@komanook.test";
+}
+
+async function signIn(page, email) {
   await page.goto("/login");
-  await page.getByLabel("Email address").fill("reader@komanook.test");
+  await page.getByLabel("Email address").fill(email);
   await page
     .getByLabel("Password", { exact: true })
     .fill("a quiet place to read");
@@ -157,8 +163,9 @@ test("account progress survives a new browser context and logout", async ({
   page,
   browser,
   baseURL,
-}) => {
-  await signIn(page);
+}, testInfo) => {
+  const email = readerEmail(testInfo);
+  await signIn(page, email);
   await openReader(page);
   await page.getByLabel("Reading mode").selectOption("ltr");
   await page.getByLabel("Current page").selectOption("3");
@@ -170,7 +177,7 @@ test("account progress survives a new browser context and logout", async ({
     viewport: { width: 390, height: 844 },
   });
   const next = await nextContext.newPage();
-  await signIn(next);
+  await signIn(next, email);
   await openReader(next);
   await expect(next.getByLabel("Current page")).toHaveValue("3");
   await nextContext.close();
@@ -180,12 +187,73 @@ test("account progress survives a new browser context and logout", async ({
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("readers can shape a responsive, crawlable manga profile", async ({
+  page,
+}, testInfo) => {
+  const handle = `paperghost-${testInfo.project.name}`;
+  await signIn(page, readerEmail(testInfo));
+  await page.goto("/account/profile");
+  await page.getByLabel("Profile address").fill(handle);
+  await page.getByLabel("Display name").fill("Paper Ghost");
+  await page
+    .getByLabel("One-line note")
+    .fill("Drawn to stories that stay with me.");
+  await page
+    .getByLabel("About your manga taste")
+    .fill("Psychological stories, quiet endings, and unforgettable panels.");
+
+  const workIDs = await page
+    .locator("#favorite-1 option")
+    .evaluateAll((options) =>
+      options.filter((option) => option.value).map((option) => option.value),
+    );
+  expect(workIDs.length).toBeGreaterThanOrEqual(2);
+  await page.locator("#favorite-1").selectOption(workIDs[0]);
+  await page.locator("#favorite-2").selectOption(workIDs[1]);
+  await page.getByLabel("Profile palette").selectOption("night");
+  await page.getByLabel("Showcase order").selectOption("stats-first");
+  await page.getByLabel("Who can see your profile?").selectOption("public");
+  await page.getByLabel("Show reading milestones").check();
+  await page.getByRole("button", { name: "Save profile" }).click();
+  await expect(page).toHaveURL(/\/account\/profile\?saved=1$/);
+  await expect(page.getByRole("status")).toContainText(
+    "Your profile is saved.",
+  );
+  await expect(
+    page.getByRole("link", { name: "View your public profile" }),
+  ).toHaveAttribute("href", `/u/${handle}`);
+
+  await page.goto(`/u/${handle}`);
+  await expect(
+    page.getByRole("heading", { name: "Paper Ghost" }),
+  ).toBeVisible();
+  await expect(page.locator(".profile-theme-night")).toBeVisible();
+  await expect(page.locator(".profile-work-card")).toHaveCount(2);
+  await expect(page.locator(".profile-showcase").first()).toContainText(
+    "Saved milestones",
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  const results = await new AxeBuilder({ page })
+    .setLegacyMode(true)
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(results.violations).toEqual([]);
+  await page.screenshot({
+    path: `/private/tmp/komanook-profile-${testInfo.project.name}.png`,
+    fullPage: true,
+  });
+});
+
 test("guest progress stays separate and imports without replacing account bookmarks", async ({
   page,
 }, testInfo) => {
   const extraSeries =
     testInfo.project.name === "mobile" ? "orbit-post" : "between-tides";
-  await signIn(page);
+  await signIn(page, readerEmail(testInfo));
   await openReader(page);
   const firstChapter = await page
     .locator("[data-reader]")
@@ -230,7 +298,7 @@ test("guest progress stays separate and imports without replacing account bookma
     )
     .toEqual([2, 3]);
 
-  await signIn(page);
+  await signIn(page, readerEmail(testInfo));
   await openReader(page);
   await expect(page.getByLabel("Current page")).toHaveValue("1");
   const accountStorageKey = `komanook.progress.account.${accountKey}.v1`;
@@ -344,8 +412,10 @@ test("long chapters keep paginated image sources bounded", async ({ page }) => {
   await expect(page.locator("[data-image][src]")).toHaveCount(2);
 });
 
-test("failed account sync keeps a local bookmark", async ({ page }) => {
-  await signIn(page);
+test("failed account sync keeps a local bookmark", async ({
+  page,
+}, testInfo) => {
+  await signIn(page, readerEmail(testInfo));
   await page.route("**/api/progress/**", (route) => route.abort());
   await openReader(page);
   await page.getByLabel("Reading mode").selectOption("ltr");

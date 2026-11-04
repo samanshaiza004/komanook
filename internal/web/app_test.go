@@ -243,6 +243,94 @@ func TestHTTPFoundation(t *testing.T) {
 			t.Fatal("session leaked into public page")
 		}
 	})
+	t.Run("reader profiles are opt-in, Work-based, and session-scoped", func(t *testing.T) {
+		checkStatus(t, c.get("/u/paperghost"), 404)
+		settings := c.get("/account/profile")
+		checkStatus(t, settings, 200)
+		if !strings.Contains(settings.header.Get("Cache-Control"), "no-store") || !strings.Contains(settings.body, "Who can see your profile?") {
+			t.Fatal("profile editor must be private and offer an explicit visibility choice")
+		}
+		checkStatus(t, c.request("POST", "/account/profile", "", "application/x-www-form-urlencoded", nil), 403)
+
+		works, err := q.PublishedWorks(ctx)
+		if err != nil || len(works) < 2 {
+			t.Fatalf("seeded Work choices missing: %v", err)
+		}
+		owner, err := q.UserByEmail(ctx, "reader@example.test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = q.SaveProgress(ctx, store.SaveProgressParams{UserID: owner.ID, ChapterID: chapter, Page: 4}); err != nil {
+			t.Fatal(err)
+		}
+		initial := url.Values{
+			"csrf_token": {c.token()}, "handle": {"paperghost"}, "display_name": {"Paper Ghost"},
+			"visibility": {"private"}, "theme": {"shelf"}, "showcase_order": {"favorites-first"},
+		}
+		checkStatus(t, c.request("POST", "/account/profile", initial.Encode(), "application/x-www-form-urlencoded", nil), 303)
+		checkStatus(t, c.get("/u/paperghost"), 404)
+		privateProfile, err := q.ProfileByUserID(ctx, owner.ID)
+		if err != nil || privateProfile.Visibility != "private" || privateProfile.ShowReadingStats {
+			t.Fatal("new profiles should be private and keep reading milestones off")
+		}
+		form := url.Values{
+			"csrf_token":         {c.token()},
+			"handle":             {"paperghost"},
+			"display_name":       {"Paper Ghost"},
+			"tagline":            {"Drawn to stories that stay with me."},
+			"bio":                {`<script>alert(1)</script>`},
+			"visibility":         {"public"},
+			"theme":              {"coral"},
+			"show_reading_stats": {"on"},
+			"showcase_order":     {"stats-first"},
+			"favorite_1":         {stringID(works[0].WorkID)},
+			"favorite_2":         {stringID(works[1].WorkID)},
+			"favorite_3":         {""},
+			"favorite_4":         {""},
+			"favorite_5":         {""},
+			"favorite_6":         {""},
+		}
+		checkStatus(t, c.request("POST", "/account/profile", form.Encode(), "application/x-www-form-urlencoded", nil), 303)
+
+		public := c.get("/u/paperghost")
+		checkStatus(t, public, 200)
+		if public.header.Get("Set-Cookie") != "" || !strings.Contains(public.header.Get("Cache-Control"), "public") {
+			t.Fatal("public profile must be cacheable without setting identity cookies")
+		}
+		if strings.Contains(public.body, "reader@example.test") || strings.Contains(public.body, `<script>alert(1)</script>`) || !strings.Contains(public.body, "&lt;script&gt;") {
+			t.Fatal("public profile exposed account data or unescaped biography")
+		}
+		if first, second, heading := strings.Index(public.body, "Saved milestones"), strings.Index(public.body, "Manga that made me"), strings.Index(public.body, works[0].WorkTitle); first < 0 || second < 0 || first > second || heading < 0 {
+			t.Fatal("profile showcase order or Work favorites did not render")
+		}
+		if !strings.Contains(public.body, "Chapters with a saved place") || !strings.Contains(public.body, "Saved places at a chapter’s last page") {
+			t.Fatal("opt-in reading milestones are missing")
+		}
+
+		other := freshClient(t, s.URL)
+		checkStatus(t, other.signIn("other@example.test", "a quiet place to read"), 303)
+		conflict := url.Values{
+			"csrf_token": {other.token()}, "handle": {"paperghost"}, "display_name": {"Other Reader"},
+			"visibility": {"public"}, "theme": {"shelf"}, "showcase_order": {"favorites-first"},
+			"user_id": {stringID(owner.ID)},
+		}
+		duplicate := other.request("POST", "/account/profile", conflict.Encode(), "application/x-www-form-urlencoded", nil)
+		checkStatus(t, duplicate, 422)
+		if !strings.Contains(duplicate.body, "already in use") {
+			t.Fatal("duplicate public handle should provide a recoverable form error")
+		}
+		conflict.Set("handle", "otherreader")
+		checkStatus(t, other.request("POST", "/account/profile", conflict.Encode(), "application/x-www-form-urlencoded", nil), 303)
+		otherProfile, err := q.ProfileByUserID(ctx, owner.ID)
+		if err != nil || otherProfile.Handle != "paperghost" {
+			t.Fatal("a profile write changed another account's identity")
+		}
+
+		form.Set("csrf_token", c.token())
+		form.Set("visibility", "private")
+		checkStatus(t, c.request("POST", "/account/profile", form.Encode(), "application/x-www-form-urlencoded", nil), 303)
+		checkStatus(t, c.get("/u/paperghost"), 404)
+	})
 	t.Run("scoped progress and validation", func(t *testing.T) {
 		headers := map[string]string{"X-CSRF-Token": c.token()}
 		for _, body := range []string{`{"page":0}`, `{"page":999}`, `{"page":2,"user_id":2}`, `{"page":2} {"page":3}`, `{"page":"2"}`} {

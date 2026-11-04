@@ -28,8 +28,11 @@ func Seed(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	defer tx.Rollback(ctx)
 	for _, s := range fixtures {
-		var seriesID, chapterID int64
-		if err = tx.QueryRow(ctx, `INSERT INTO series(slug,title,creator,genre,format,synopsis,cover,rights,published) VALUES($1,$2,$3,$4,$5,$6,$7,$8,true) ON CONFLICT(slug) DO UPDATE SET title=EXCLUDED.title RETURNING id`, s.Slug, s.Title, s.Creator, s.Genre, s.Format, s.Synopsis, s.Cover, s.Rights).Scan(&seriesID); err != nil {
+		var workID, seriesID, chapterID int64
+		if err = tx.QueryRow(ctx, `INSERT INTO works(slug,title) VALUES($1,$2) ON CONFLICT(slug) DO UPDATE SET title=EXCLUDED.title RETURNING id`, s.Slug, s.Title).Scan(&workID); err != nil {
+			return err
+		}
+		if err = tx.QueryRow(ctx, `INSERT INTO series(work_id,slug,title,creator,genre,format,synopsis,cover,rights,published) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,true) ON CONFLICT(slug) DO UPDATE SET title=EXCLUDED.title,work_id=EXCLUDED.work_id RETURNING id`, workID, s.Slug, s.Title, s.Creator, s.Genre, s.Format, s.Synopsis, s.Cover, s.Rights).Scan(&seriesID); err != nil {
 			return err
 		}
 		if err = tx.QueryRow(ctx, `INSERT INTO chapters(series_id,number,title,published) VALUES($1,1,$2,true) ON CONFLICT(series_id,number) DO UPDATE SET title=EXCLUDED.title RETURNING id`, seriesID, s.Chapter).Scan(&chapterID); err != nil {

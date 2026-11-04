@@ -111,6 +111,11 @@ try {
   );
   await run(
     "./bin/komanook",
+    ["user", "--email", "reader-mobile@komanook.test", "--role", "reader"],
+    { input: "a quiet place to read\n" },
+  );
+  await run(
+    "./bin/komanook",
     ["user", "--email", "operator@komanook.test", "--role", "admin"],
     { input: "a quiet place to work\n" },
   );

@@ -1,0 +1,140 @@
+package web
+
+import (
+	"fmt"
+	"strconv"
+
+	"komanook/internal/database/store"
+)
+
+templ profileEditorView(data profileEditorData) {
+	@layout("Shape your manga profile", "Choose what other readers can see on your Komanook profile.", "profile-settings") {
+		<main id="main" class="wrap profile-settings-main">
+			<a class="back-link" href="/account">← Back to your reading space</a>
+			<p class="eyebrow">A shelf with your name on it</p>
+			<h1>Make your manga shelf yours.</h1>
+			<p class="profile-settings-lede">Choose a few stories, add a note about your taste, and decide whether the page is public. Your profile never displays your email or chapter-by-chapter reading places.</p>
+			if data.Saved {
+				<p class="profile-saved" role="status">Your profile is saved.</p>
+				if data.Form.Visibility == "public" {
+					<p class="profile-share-link"><a href={ templ.URL("/u/" + data.Form.Handle) }>View your public profile →</a></p>
+				}
+			}
+			if data.Error != "" {
+				<p class="form-error profile-error" role="alert">{ data.Error }</p>
+			}
+			<form class="profile-form" method="post" action="/account/profile">
+				<input type="hidden" name="csrf_token" value={ data.Token }/>
+				<fieldset>
+					<legend>Reader identity</legend>
+					<div class="profile-form-grid">
+						<div><label for="profile-handle">Profile address</label><div class="handle-input"><span aria-hidden="true">/u/</span><input id="profile-handle" name="handle" value={ data.Form.Handle } maxlength="24" pattern="[a-z0-9][a-z0-9_-]{2,23}" autocomplete="off" required/></div><small>3–24 lowercase letters, numbers, hyphens, or underscores.</small></div>
+						<div><label for="profile-display-name">Display name</label><input id="profile-display-name" name="display_name" value={ data.Form.DisplayName } maxlength="60" autocomplete="nickname" required/></div>
+						<div class="profile-field-wide"><label for="profile-tagline">One-line note</label><input id="profile-tagline" name="tagline" value={ data.Form.Tagline } maxlength="100" placeholder="Drawn to stories that stay with me."/><small>Up to 100 characters.</small></div>
+						<div class="profile-field-wide"><label for="profile-bio">About your manga taste</label><textarea id="profile-bio" name="bio" rows="4" maxlength="320" placeholder="Tell people what you love to read.">{ data.Form.Bio }</textarea><small>Plain text, up to 320 characters.</small></div>
+					</div>
+				</fieldset>
+				<fieldset>
+					<legend>Your manga shelf</legend>
+					<p class="profile-form-help">Pick up to six works and arrange them in the order you want people to see. A favorite is a personal choice; it does not imply that you have read or finished a work.</p>
+					<div class="favorite-slots">
+						for i, selected := range data.Form.Favorites {
+							<label for={ fmt.Sprintf("favorite-%d", i+1) }>{ fmt.Sprintf("Manga %d", i+1) }</label>
+							<select id={ fmt.Sprintf("favorite-%d", i+1) } name={ fmt.Sprintf("favorite_%d", i+1) }>
+								<option value="" selected?={ selected == "" }>Leave this spot open</option>
+								for _, work := range data.Works {
+									<option value={ strconv.FormatInt(work.WorkID, 10) } selected?={ selected == strconv.FormatInt(work.WorkID, 10) }>{ work.WorkTitle }{ " · " + work.Creator }</option>
+								}
+							</select>
+						}
+					</div>
+				</fieldset>
+				<fieldset>
+					<legend>Showcase and privacy</legend>
+					<div class="profile-form-grid">
+						<div><label for="profile-theme">Profile palette</label><select id="profile-theme" name="theme"><option value="shelf" selected?={ data.Form.Theme == "shelf" }>Indigo shelf</option><option value="night" selected?={ data.Form.Theme == "night" }>Night reader</option><option value="coral" selected?={ data.Form.Theme == "coral" }>Coral print</option></select></div>
+						<div><label for="showcase-order">Showcase order</label><select id="showcase-order" name="showcase_order"><option value="favorites-first" selected?={ data.Form.ShowcaseOrder == "favorites-first" }>Favorite manga first</option><option value="stats-first" selected?={ data.Form.ShowcaseOrder == "stats-first" }>Reading milestones first</option></select></div>
+						<div class="profile-field-wide"><label for="profile-visibility">Who can see your profile?</label><select id="profile-visibility" name="visibility"><option value="private" selected?={ data.Form.Visibility == "private" }>Only me · private</option><option value="public" selected?={ data.Form.Visibility == "public" }>Anyone with the link · public</option></select><small>Private profiles return not found to visitors. Public profiles show only your display name, note, bio, chosen manga, and the milestones you enable below.</small></div>
+						<div class="profile-field-wide profile-check-row"><input id="show-reading-stats" name="show_reading_stats" type="checkbox" checked?={ data.Form.ShowReadingStats }/><label for="show-reading-stats">Show reading milestones</label><small>Counts are based on saved chapter places. Komanook does not estimate reading time.</small></div>
+					</div>
+				</fieldset>
+				<div class="profile-form-actions"><button class="button" type="submit">Save profile</button><a href="/catalog">Browse the catalog</a></div>
+			</form>
+		</main>
+	}
+}
+
+templ publicProfileView(profile store.ReaderProfile, favorites []store.ProfileFavoritesByUserIDRow, stats store.ProfileReadingStatsRow) {
+	@layout(profile.DisplayName+" · Reader profile", profileDescription(profile), "reader-profile") {
+		<main id="main" class="profile-main">
+			<header class={ "profile-banner profile-theme-" + profile.Theme }>
+				<div class="profile-banner-copy">
+					<p class="eyebrow">A reader’s corner</p>
+					<h1>{ profile.DisplayName }</h1>
+					<p class="profile-handle">{ "@" }{ profile.Handle }</p>
+					if profile.Tagline != "" {
+						<p class="profile-tagline">“{ profile.Tagline }”</p>
+					}
+				</div>
+				if len(favorites) > 0 {
+					<div class="profile-cover-fan" aria-hidden="true">
+						for i, work := range favorites {
+							if i < 4 {
+								<img class={ fmt.Sprintf("profile-cover profile-cover-%d", i+1) } src={ asset(work.Cover) } width="400" height="600" alt=""/>
+							}
+						}
+					</div>
+				} else {
+					<div class="profile-stamp" aria-hidden="true"><span>✳</span><p>Good stories.<br/>Room to get lost.</p></div>
+				}
+			</header>
+			<div class="wrap profile-content">
+				if profile.Bio != "" {
+					<section class="profile-note" aria-labelledby="profile-note-title">
+						<p class="eyebrow">A corner of Komanook</p>
+						<h2 id="profile-note-title">What stays with me</h2>
+						<p>{ profile.Bio }</p>
+					</section>
+				}
+				if profile.ShowcaseOrder == "stats-first" && profile.ShowReadingStats {
+					@profileMilestones(stats)
+				}
+				@profileFavorites(favorites)
+				if profile.ShowcaseOrder != "stats-first" && profile.ShowReadingStats {
+					@profileMilestones(stats)
+				}
+				<p class="profile-credit">A personal manga shelf on Komanook.</p>
+			</div>
+		</main>
+	}
+}
+
+templ profileFavorites(favorites []store.ProfileFavoritesByUserIDRow) {
+	<section class="profile-showcase" aria-labelledby="favorite-works-title">
+		<div class="profile-section-heading"><div><p class="eyebrow">Personal collection</p><h2 id="favorite-works-title">Manga that made me</h2></div><p>Chosen and arranged by this reader.</p></div>
+		if len(favorites) == 0 {
+			<div class="profile-empty"><span aria-hidden="true">✳</span><div><h3>The shelf is open.</h3><p>This reader is still choosing which stories to feature.</p></div></div>
+		} else {
+			<div class="profile-favorites-grid">
+				for _, work := range favorites {
+					<article class="profile-work-card">
+						<a href={ templ.URL("/series/" + work.WorkSlug) } class="profile-work-cover"><img src={ asset(work.Cover) } alt={ work.WorkTitle + " — illustrated cover" } width="400" height="600" loading="lazy"/><span>{ work.Genre }</span></a>
+						<h3><a href={ templ.URL("/series/" + work.WorkSlug) }>{ work.WorkTitle }</a></h3>
+						<p>{ work.Creator }</p>
+					</article>
+				}
+			</div>
+		}
+	</section>
+}
+
+templ profileMilestones(stats store.ProfileReadingStatsRow) {
+	<section class="profile-showcase profile-milestones" aria-labelledby="profile-milestones-title">
+		<div class="profile-section-heading"><div><p class="eyebrow">Reading, at your pace</p><h2 id="profile-milestones-title">Saved milestones</h2></div><p>A quiet record of places left in stories.</p></div>
+		<div class="profile-stat-grid">
+			<div class="profile-stat"><strong>{ strconv.FormatInt(stats.SavedChapters, 10) }</strong><span>Chapters with a saved place</span></div>
+			<div class="profile-stat"><strong>{ strconv.FormatInt(stats.FinalPagesReached, 10) }</strong><span>Saved places at a chapter’s last page</span></div>
+		</div>
+		<p class="profile-stat-note">These counts come from saved page positions. They do not measure time spent reading.</p>
+	</section>
+}

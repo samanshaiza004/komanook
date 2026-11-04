@@ -39,6 +39,27 @@ type Page struct {
 	Transcript string
 }
 
+type ProfileFavorite struct {
+	UserID   int64
+	WorkID   int64
+	Position int16
+}
+
+type ReaderProfile struct {
+	UserID           int64
+	Handle           string
+	DisplayName      string
+	Tagline          string
+	Bio              string
+	Visibility       string
+	Theme            string
+	ShowReadingStats bool
+	ShowcaseOrder    string
+	ShowcaseVersion  int16
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
 type ReadingProgress struct {
 	UserID    int64
 	ChapterID int64
@@ -57,6 +78,7 @@ type Series struct {
 	Cover     string
 	Rights    string
 	Published bool
+	WorkID    int64
 }
 
 type Session struct {
@@ -83,4 +105,11 @@ type User struct {
 	Disabled     bool
 	AuthVersion  int32
 	CreatedAt    pgtype.Timestamptz
+}
+
+type Work struct {
+	ID        int64
+	Slug      string
+	Title     string
+	CreatedAt pgtype.Timestamptz
 }

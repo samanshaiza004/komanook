@@ -9,6 +9,30 @@ import (
 	"context"
 )
 
+const addProfileFavorite = `-- name: AddProfileFavorite :exec
+INSERT INTO profile_favorites (user_id, work_id, position) VALUES ($1,$2,$3)
+`
+
+type AddProfileFavoriteParams struct {
+	UserID   int64
+	WorkID   int64
+	Position int16
+}
+
+func (q *Queries) AddProfileFavorite(ctx context.Context, arg AddProfileFavoriteParams) error {
+	_, err := q.db.Exec(ctx, addProfileFavorite, arg.UserID, arg.WorkID, arg.Position)
+	return err
+}
+
+const deleteProfileFavorites = `-- name: DeleteProfileFavorites :exec
+DELETE FROM profile_favorites WHERE user_id = $1
+`
+
+func (q *Queries) DeleteProfileFavorites(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, deleteProfileFavorites, userID)
+	return err
+}
+
 const loginAttempt = `-- name: LoginAttempt :one
 INSERT INTO login_limits (key, attempts, expires_at) VALUES ($1, 1, now() + interval '15 minutes')
 ON CONFLICT (key) DO UPDATE SET
@@ -22,6 +46,106 @@ func (q *Queries) LoginAttempt(ctx context.Context, key string) (int32, error) {
 	var attempts int32
 	err := row.Scan(&attempts)
 	return attempts, err
+}
+
+const profileByUserID = `-- name: ProfileByUserID :one
+SELECT user_id, handle, display_name, tagline, bio, visibility, theme, show_reading_stats, showcase_order, showcase_version, created_at, updated_at FROM reader_profiles WHERE user_id = $1
+`
+
+func (q *Queries) ProfileByUserID(ctx context.Context, userID int64) (ReaderProfile, error) {
+	row := q.db.QueryRow(ctx, profileByUserID, userID)
+	var i ReaderProfile
+	err := row.Scan(
+		&i.UserID,
+		&i.Handle,
+		&i.DisplayName,
+		&i.Tagline,
+		&i.Bio,
+		&i.Visibility,
+		&i.Theme,
+		&i.ShowReadingStats,
+		&i.ShowcaseOrder,
+		&i.ShowcaseVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const profileFavoritesByUserID = `-- name: ProfileFavoritesByUserID :many
+SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
+       s.creator, s.cover, s.genre, f.position
+FROM profile_favorites f
+JOIN works w ON w.id = f.work_id
+JOIN series s ON s.work_id = w.id AND s.published = true
+WHERE f.user_id = $1
+ORDER BY f.position
+`
+
+type ProfileFavoritesByUserIDRow struct {
+	WorkID    int64
+	WorkSlug  string
+	WorkTitle string
+	Creator   string
+	Cover     string
+	Genre     string
+	Position  int16
+}
+
+func (q *Queries) ProfileFavoritesByUserID(ctx context.Context, userID int64) ([]ProfileFavoritesByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, profileFavoritesByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProfileFavoritesByUserIDRow{}
+	for rows.Next() {
+		var i ProfileFavoritesByUserIDRow
+		if err := rows.Scan(
+			&i.WorkID,
+			&i.WorkSlug,
+			&i.WorkTitle,
+			&i.Creator,
+			&i.Cover,
+			&i.Genre,
+			&i.Position,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const profileReadingStats = `-- name: ProfileReadingStats :one
+WITH chapter_pages AS (
+    SELECT c.id, count(p.number)::int AS page_count
+    FROM chapters c
+    JOIN series s ON s.id = c.series_id AND s.published = true
+    JOIN pages p ON p.chapter_id = c.id
+    WHERE c.published = true
+    GROUP BY c.id
+)
+SELECT count(*)::bigint AS saved_chapters,
+       count(*) FILTER (WHERE rp.page >= cp.page_count)::bigint AS final_pages_reached
+FROM reading_progress rp
+JOIN chapter_pages cp ON cp.id = rp.chapter_id
+WHERE rp.user_id = $1
+`
+
+type ProfileReadingStatsRow struct {
+	SavedChapters     int64
+	FinalPagesReached int64
+}
+
+func (q *Queries) ProfileReadingStats(ctx context.Context, userID int64) (ProfileReadingStatsRow, error) {
+	row := q.db.QueryRow(ctx, profileReadingStats, userID)
+	var i ProfileReadingStatsRow
+	err := row.Scan(&i.SavedChapters, &i.FinalPagesReached)
+	return i, err
 }
 
 const provisionUser = `-- name: ProvisionUser :one
@@ -47,6 +171,170 @@ func (q *Queries) ProvisionUser(ctx context.Context, arg ProvisionUserParams) (U
 		&i.Disabled,
 		&i.AuthVersion,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const publicProfileByHandle = `-- name: PublicProfileByHandle :one
+SELECT p.user_id, p.handle, p.display_name, p.tagline, p.bio, p.visibility, p.theme, p.show_reading_stats, p.showcase_order, p.showcase_version, p.created_at, p.updated_at
+FROM reader_profiles p
+JOIN users u ON u.id = p.user_id AND u.disabled = false
+WHERE p.handle = $1 AND p.visibility = 'public'
+`
+
+func (q *Queries) PublicProfileByHandle(ctx context.Context, handle string) (ReaderProfile, error) {
+	row := q.db.QueryRow(ctx, publicProfileByHandle, handle)
+	var i ReaderProfile
+	err := row.Scan(
+		&i.UserID,
+		&i.Handle,
+		&i.DisplayName,
+		&i.Tagline,
+		&i.Bio,
+		&i.Visibility,
+		&i.Theme,
+		&i.ShowReadingStats,
+		&i.ShowcaseOrder,
+		&i.ShowcaseVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const publishedWorkByID = `-- name: PublishedWorkByID :one
+SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
+       s.creator, s.cover, s.genre
+FROM works w
+JOIN series s ON s.work_id = w.id AND s.published = true
+WHERE w.id = $1
+`
+
+type PublishedWorkByIDRow struct {
+	WorkID    int64
+	WorkSlug  string
+	WorkTitle string
+	Creator   string
+	Cover     string
+	Genre     string
+}
+
+func (q *Queries) PublishedWorkByID(ctx context.Context, id int64) (PublishedWorkByIDRow, error) {
+	row := q.db.QueryRow(ctx, publishedWorkByID, id)
+	var i PublishedWorkByIDRow
+	err := row.Scan(
+		&i.WorkID,
+		&i.WorkSlug,
+		&i.WorkTitle,
+		&i.Creator,
+		&i.Cover,
+		&i.Genre,
+	)
+	return i, err
+}
+
+const publishedWorks = `-- name: PublishedWorks :many
+SELECT w.id AS work_id, w.slug AS work_slug, w.title AS work_title,
+       s.creator, s.cover, s.genre
+FROM works w
+JOIN series s ON s.work_id = w.id AND s.published = true
+ORDER BY w.title, w.id
+LIMIT 100
+`
+
+type PublishedWorksRow struct {
+	WorkID    int64
+	WorkSlug  string
+	WorkTitle string
+	Creator   string
+	Cover     string
+	Genre     string
+}
+
+func (q *Queries) PublishedWorks(ctx context.Context) ([]PublishedWorksRow, error) {
+	rows, err := q.db.Query(ctx, publishedWorks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PublishedWorksRow{}
+	for rows.Next() {
+		var i PublishedWorksRow
+		if err := rows.Scan(
+			&i.WorkID,
+			&i.WorkSlug,
+			&i.WorkTitle,
+			&i.Creator,
+			&i.Cover,
+			&i.Genre,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const upsertReaderProfile = `-- name: UpsertReaderProfile :one
+INSERT INTO reader_profiles (
+    user_id, handle, display_name, tagline, bio, visibility, theme,
+    show_reading_stats, showcase_order, showcase_version
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,1)
+ON CONFLICT (user_id) DO UPDATE SET
+    handle = EXCLUDED.handle,
+    display_name = EXCLUDED.display_name,
+    tagline = EXCLUDED.tagline,
+    bio = EXCLUDED.bio,
+    visibility = EXCLUDED.visibility,
+    theme = EXCLUDED.theme,
+    show_reading_stats = EXCLUDED.show_reading_stats,
+    showcase_order = EXCLUDED.showcase_order,
+    showcase_version = 1,
+    updated_at = now()
+RETURNING user_id, handle, display_name, tagline, bio, visibility, theme, show_reading_stats, showcase_order, showcase_version, created_at, updated_at
+`
+
+type UpsertReaderProfileParams struct {
+	UserID           int64
+	Handle           string
+	DisplayName      string
+	Tagline          string
+	Bio              string
+	Visibility       string
+	Theme            string
+	ShowReadingStats bool
+	ShowcaseOrder    string
+}
+
+func (q *Queries) UpsertReaderProfile(ctx context.Context, arg UpsertReaderProfileParams) (ReaderProfile, error) {
+	row := q.db.QueryRow(ctx, upsertReaderProfile,
+		arg.UserID,
+		arg.Handle,
+		arg.DisplayName,
+		arg.Tagline,
+		arg.Bio,
+		arg.Visibility,
+		arg.Theme,
+		arg.ShowReadingStats,
+		arg.ShowcaseOrder,
+	)
+	var i ReaderProfile
+	err := row.Scan(
+		&i.UserID,
+		&i.Handle,
+		&i.DisplayName,
+		&i.Tagline,
+		&i.Bio,
+		&i.Visibility,
+		&i.Theme,
+		&i.ShowReadingStats,
+		&i.ShowcaseOrder,
+		&i.ShowcaseVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

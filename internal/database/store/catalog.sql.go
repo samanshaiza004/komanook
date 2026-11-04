@@ -10,7 +10,7 @@ import (
 )
 
 const catalog = `-- name: Catalog :many
-SELECT id, slug, title, creator, synopsis, genre, format, cover, rights, published FROM series WHERE published = true
+SELECT id, slug, title, creator, synopsis, genre, format, cover, rights, published, work_id FROM series WHERE published = true
 AND ($1::text = '' OR title ILIKE '%' || $1::text || '%' OR creator ILIKE '%' || $1::text || '%')
 AND ($2::text = '' OR genre = $2)
 ORDER BY id LIMIT 24
@@ -41,6 +41,7 @@ func (q *Queries) Catalog(ctx context.Context, arg CatalogParams) ([]Series, err
 			&i.Cover,
 			&i.Rights,
 			&i.Published,
+			&i.WorkID,
 		); err != nil {
 			return nil, err
 		}
@@ -147,7 +148,7 @@ func (q *Queries) Pages(ctx context.Context, chapterID int64) ([]Page, error) {
 }
 
 const series = `-- name: Series :one
-SELECT id, slug, title, creator, synopsis, genre, format, cover, rights, published FROM series WHERE slug = $1 AND published = true
+SELECT id, slug, title, creator, synopsis, genre, format, cover, rights, published, work_id FROM series WHERE slug = $1 AND published = true
 `
 
 func (q *Queries) Series(ctx context.Context, slug string) (Series, error) {
@@ -164,6 +165,7 @@ func (q *Queries) Series(ctx context.Context, slug string) (Series, error) {
 		&i.Cover,
 		&i.Rights,
 		&i.Published,
+		&i.WorkID,
 	)
 	return i, err
 }

@@ -170,6 +170,10 @@ templ accountView(u store.User, token string, removals []store.MangaDexGroupRemo
 			<p class="eyebrow">A place to return to</p>
 			<h1>Your reading space</h1>
 			<p>Signed in as <strong>{ u.Email }</strong>. Your reading place saves across devices as you turn the pages.</p><a class="button" href="/catalog">Find your next read →</a>
+			<section class="account-profile-card" aria-labelledby="account-profile-title">
+				<div><p class="eyebrow">Collect · curate · share</p><h2 id="account-profile-title">Your manga profile</h2><p>Give your reading taste a place to live. Choose a few favorite works, arrange your own shelf, and decide what stays private.</p></div>
+				<a class="button button-secondary" href="/account/profile">Shape your profile <span aria-hidden="true">→</span></a>
+			</section>
 			<section class="account-import" data-progress-import data-csrf={ token } hidden aria-labelledby="import-progress-title">
 				<h2 id="import-progress-title">Bring your guest reading places?</h2>
 				<p>We found <strong data-progress-count>0 chapters</strong> saved while you were signed out. Importing fills only chapters without an existing account bookmark.</p>
