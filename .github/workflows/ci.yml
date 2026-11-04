@@ -1,0 +1,74 @@
+name: Foundation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.6-alpine@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+        env:
+          POSTGRES_DB: komanook
+          POSTGRES_USER: komanook
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U komanook" --health-interval 2s --health-timeout 3s --health-retries 20
+    env:
+      APP_ENV: test
+      HTTP_ADDR: 127.0.0.1:8080
+      BASE_URL: http://localhost:8080
+      DATABASE_URL: postgres://komanook:ci-only-password@localhost:5432/komanook?sslmode=disable
+      TEST_DATABASE_URL: postgres://komanook:ci-only-password@localhost:5432/komanook?sslmode=disable
+      MEDIA_DIR: .data/ci-media
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.13.0
+          cache: npm
+      - run: npm ci
+      - run: go mod verify
+      - run: make generate assets
+      - run: git diff --exit-code
+      - run: make check
+      - run: go test -race ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+      - run: npm audit --audit-level=high
+      - run: make build
+      - run: |
+          ./bin/komanook migrate
+          ./bin/komanook seed
+          printf '%s\n' 'a quiet place to read' | ./bin/komanook user --email reader@komanook.test
+          printf '%s\n' 'a quiet place to work' | ./bin/komanook user --email operator@komanook.test --role admin
+          ./bin/komanook serve > .data/ci-server.log 2>&1 &
+          for attempt in $(seq 1 50); do
+            if curl -fsS http://localhost:8080/health/ready; then exit 0; fi
+            sleep 0.2
+          done
+          exit 1
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - run: npm run bench
+      - run: docker build -t komanook:ci .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-and-performance-evidence
+          path: |
+            playwright-report
+            test-results
+            docs/performance.md
+            docs/performance-results.json
+            docs/screenshots
+            .data/ci-server.log

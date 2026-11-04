@@ -1,0 +1,22 @@
+package web
+
+// Adapted from shadcn-templ's MIT button primitive at b7074c1d.
+// Komanook keeps native buttons, owns its CSS, and needs no component runtime.
+type buttonProps struct {
+	Type       string
+	Secondary  bool
+	Disabled   bool
+	Attributes templ.Attributes
+}
+
+templ button(p buttonProps) {
+	{{
+		kind := p.Type
+		if kind == "" {
+			kind = "button"
+		}
+	}}
+	<button type={ kind } class={ "button", templ.KV("button-secondary",p.Secondary) } disabled?={ p.Disabled } { p.Attributes... }>
+		{ children... }
+	</button>
+}

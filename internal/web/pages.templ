@@ -1,0 +1,211 @@
+package web
+
+import (
+	"fmt"
+	"komanook/internal/database/store"
+	"strconv"
+)
+
+templ layout(title string, description string, kind string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title } · Komanook</title>
+			<meta name="description" content={ description }/>
+			<meta name="color-scheme" content="light dark"/>
+			<link rel="icon" href={ asset("mark.svg") } type="image/svg+xml"/>
+			<link rel="stylesheet" href={ asset("app.css") }/>
+			if kind == "catalog" || kind == "series" {
+				<script type="module" src={ asset("vendor/datastar-1.0.4.js") }></script>
+			}
+			if kind == "series" {
+				<script type="module" src={ asset("app.js") }></script>
+			}
+			if kind == "reader" {
+				<script type="module" src={ asset("reader.js") }></script>
+			}
+		</head>
+		<body class={ "page-" + kind }>
+			<a class="skip-link" href="#main">Skip to content</a>
+			<header class="site-header">
+				<a class="wordmark" href="/" aria-label="Komanook home"><img src={ asset("mark.svg") } width="32" height="32" alt=""/>komanook<span class="wordmark-dot">.</span></a>
+				<nav aria-label="Main navigation"><a href="/catalog">Discover</a><a href="/account">Your reading space <span aria-hidden="true">↗</span></a></nav>
+			</header>
+			{ children... }
+			<footer class="site-footer"><a class="wordmark" href="/">komanook.</a><p>Good stories. Room to get lost.</p><p>Original sample comics · <a href="/catalog">Explore the shelf</a></p></footer>
+		</body>
+	</html>
+}
+
+templ catalogPage(items []store.Series, search string, genre string) {
+	@layout("Find your next favorite", "Original comics, new worlds, and a little room to get lost. Discover Komanook's independent comic collection.", "catalog") {
+		<main id="main">
+			<section class="shelf-hero" aria-labelledby="hero-title">
+				<div class="hero-copy"><p class="eyebrow"><span class="small-spark" aria-hidden="true">✳</span> A home for illustrated worlds</p><h1 id="hero-title">One more page.<br/><span>A whole new world.</span></h1><p>Small discoveries. Big adventures. Find a story that stays with you, long after the last panel.</p><a class="button button-paper" href="#collection">Find your next read <span aria-hidden="true">↓</span></a><span class="hero-note">Independent stories, shared with permission.</span></div>
+				<div class="hero-art" aria-hidden="true">
+					<img class="hero-cover cover-left" src={ asset("comics/between-tides-cover.webp") } width="400" height="600" alt=""/>
+					<img class="hero-cover cover-right" src={ asset("comics/orbit-post-cover.webp") } width="400" height="600" alt=""/>
+					<img class="hero-cover cover-front" src={ asset("comics/last-signal-cover.webp") } width="400" height="600" alt="" fetchpriority="high"/>
+					<span class="shelf-label">PICK A WORLD. STAY A WHILE.</span>
+				</div>
+			</section>
+			<section id="collection" class="collection wrap" aria-labelledby="collection-title">
+				<div class="section-heading"><div><p class="eyebrow">The opening shelf</p><h2 id="collection-title">Your next chapter starts here</h2></div><p>Three original short reads.<br/>Made for a quiet moment.</p></div>
+				@searchForm(search, genre)
+				@catalogResults(items)
+			</section>
+			<aside class="reading-note wrap"><span aria-hidden="true">↳</span><div><h2>A little less noise. A little more story.</h2><p>Read your way: an unbroken vertical strip, or one page at a time. Your place is saved on this device. Sign in to keep it across devices.</p></div><a href="/account">Make yourself at home <span aria-hidden="true">↗</span></a></aside>
+		</main>
+	}
+}
+
+templ searchForm(search string, genre string) {
+	<form class="catalog-search" action="/catalog" method="get" data-on:submit__prevent="@get('/catalog?q=' + encodeURIComponent(document.querySelector('#catalog-q').value) + '&amp;genre=' + encodeURIComponent(document.querySelector('#catalog-genre').value))">
+		<div class="search-field"><label for="catalog-q">Find a story or creator</label><input id="catalog-q" type="search" name="q" value={ search } maxlength="100" placeholder="A title, a world, a feeling…"/></div>
+		<div><label for="catalog-genre">Genre</label><select id="catalog-genre" name="genre"><option value="">All worlds</option><option selected?={ genre=="Science fiction" }>Science fiction</option><option selected?={ genre=="Slice of life" }>Slice of life</option><option selected?={ genre=="Adventure" }>Adventure</option></select></div>
+		@button(buttonProps{Type: "submit"}) {
+			Explore <span aria-hidden="true">↗</span>
+		}
+	</form>
+}
+
+templ catalogResults(items []store.Series) {
+	<div id="catalog-results">
+		<p class="result-count" role="status">{ fmt.Sprintf("%d stories on the shelf",len(items)) }</p>
+		if len(items)==0 {
+			<div class="empty"><h3>A world still waiting to be drawn.</h3><p>Try a different title or choose all worlds.</p><a href="/catalog">See every story</a></div>
+		}
+		<div class="cover-grid">
+			for _,s := range items {
+				<article class="series-card"><a href={ templ.URL("/series/" + s.Slug) } class="cover-link"><img src={ asset(s.Cover) } alt={ s.Title + " — illustrated cover" } width="400" height="600" loading="lazy"/><span class="cover-cta">Step inside <span aria-hidden="true">↗</span></span></a><div class="card-meta"><span>{ s.Genre }</span><span>{ s.Format }</span></div><h3><a href={ templ.URL("/series/" + s.Slug) }>{ s.Title }</a></h3><p class="creator">{ s.Creator }</p><p class="card-synopsis">{ s.Synopsis }</p></article>
+			}
+		</div>
+	</div>
+}
+
+templ seriesPage(s store.Series, chapters []store.Chapter, items []store.Series) {
+	@layout(s.Title, s.Synopsis, "series") {
+		<main id="main" class="wrap series-main">
+			<a class="back-link" href="/catalog">← Back to the shelf</a>
+			<section class="series-intro" aria-labelledby="series-title">
+				<img class="detail-cover" src={ asset(s.Cover) } width="400" height="600" alt={ s.Title + " — illustrated cover" }/>
+				<div>
+					<p class="eyebrow">{ s.Genre } <span aria-hidden="true">/</span> { s.Format }</p>
+					<h1 id="series-title">{ s.Title }</h1>
+					<p class="byline">Story &amp; art by { s.Creator }</p>
+					<p class="synopsis">{ s.Synopsis }</p>
+					<div class="series-facts"><span>Original short comic</span><span>Complete</span><span>Free to read</span></div>
+					if len(chapters)>0 {
+						<a class="button" href={ templ.URL(fmt.Sprintf("/read/%d", chapters[0].ID)) }>Start reading <span aria-hidden="true">→</span></a>
+					}
+					<p class="rights-note">Shared with permission · { s.Rights }</p>
+				</div>
+			</section>
+			<manner-tabs data-ignore data-ignore-morph class="series-tabs">
+				<nav data-tablist aria-label="Series information"><a data-tab href="#chapters">Chapters</a><a data-tab href="#about">About this story</a></nav>
+				<section id="chapters" data-panel>
+					<h2 class="sr-only">Chapters</h2>
+					for _,c := range chapters {
+						<a class="chapter-row" href={ templ.URL(fmt.Sprintf("/read/%d", c.ID)) }><span class="chapter-number">{ fmt.Sprintf("%02d",c.Number) }</span><span><strong>{ c.Title }</strong><small>Original edition · Complete short story</small></span><span aria-hidden="true">Read →</span></a>
+					}
+				</section>
+				<section id="about" data-panel><h2>A story with room to breathe</h2><p>{ s.Synopsis }</p><p>This is an original Komanook sample comic. The artwork and dialogue are dedicated to the public domain under CC0. It demonstrates the reading experience without redistributing anyone else's work.</p></section>
+			</manner-tabs>
+			<section class="collection" aria-labelledby="more-title">
+				<div class="section-heading"><div><p class="eyebrow">Stay curious</p><h2 id="more-title">There’s another world nearby</h2></div></div>
+				@searchForm("", "")
+				@catalogResults(items)
+			</section>
+		</main>
+	}
+}
+
+templ loginView(token string, message string) {
+	@layout("Welcome back", "Sign in to keep your reading place across devices.", "account") {
+		<main id="main" class="auth-main wrap">
+			<section class="auth-copy"><p class="eyebrow">Your reading space</p><h1>A familiar place.<br/>A new chapter.</h1><p>Keep your place across devices, and pick up wherever a story finds you.</p><a href="/catalog">Just here to read? Explore the shelf →</a></section>
+			<section class="auth-card" aria-labelledby="signin-title">
+				<h2 id="signin-title">Welcome back</h2>
+				<p>Settle in. Your stories are waiting.</p>
+				if message!="" {
+					<p class="form-error" role="alert">{ message }</p>
+				}
+				<form method="post" action="/login">
+					<input type="hidden" name="csrf_token" value={ token }/><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="username" maxlength="254"/><label for="password">Password</label><input id="password" name="password" type="password" required autocomplete="current-password" maxlength="72"/>
+					@button(buttonProps{Type: "submit"}) {
+						Sign in <span aria-hidden="true">→</span>
+					}
+				</form>
+				<p class="fine-print">Komanook is in a private pilot. Accounts are provided by the operator. You can read every sample story without an account.</p>
+			</section>
+		</main>
+	}
+}
+
+templ accountView(u store.User, token string) {
+	@layout("Your reading space", "Your Komanook reading account.", "account") {
+		<main id="main" class="wrap account-main">
+			<p class="eyebrow">A place to return to</p>
+			<h1>Your reading space</h1>
+			<p>Signed in as <strong>{ u.Email }</strong>. Your reading place saves across devices as you turn the pages.</p><a class="button" href="/catalog">Find your next read →</a>
+			<form method="post" action="/logout">
+				<input type="hidden" name="csrf_token" value={ token }/>
+				@button(buttonProps{Type: "submit", Secondary: true}) {
+					Sign out
+				}
+			</form>
+			if u.Role=="admin" {
+				<details class="operator-tools">
+					<summary>Private image processing</summary>
+					<p>Upload an authorized JPEG or PNG for normalization. Processed images stay private; this does not publish a chapter.</p>
+					<form method="post" action="/admin/uploads" enctype="multipart/form-data">
+						<input type="hidden" name="csrf_token" value={ token }/><label for="upload-image">One JPEG or PNG, up to 10 MiB</label><input type="file" id="upload-image" name="image" accept="image/jpeg,image/png" required/>
+						@button(buttonProps{Type: "submit"}) {
+							Process image
+						}
+					</form>
+				</details>
+			}
+		</main>
+	}
+}
+
+templ readerView(c store.ChapterRow, pages []store.Page, token string, signedIn bool) {
+	@layout(c.SeriesTitle+" — "+c.Title, "Read "+c.Title+", an original Komanook comic.", "reader") {
+		<main id="main" data-reader data-ignore data-ignore-morph data-chapter={ strconv.FormatInt(c.ID, 10) } data-csrf={ token } data-signed-in={ strconv.FormatBool(signedIn) }>
+			<div class="reader-heading wrap"><a class="back-link" href={ templ.URL("/series/" + c.SeriesSlug) }>← { c.SeriesTitle }</a><h1>{ fmt.Sprintf("Chapter %d · %s",c.Number,c.Title) }</h1></div>
+			<div class="reader-toolbar" data-reader-controls hidden>
+				<div class="reader-controls-inner">
+					<div><label for="reading-mode">Reading mode</label><select id="reading-mode" data-mode><option value="vertical">Vertical scroll</option><option value="ltr">Pages · left to right</option><option value="rtl">Pages · right to left</option></select></div>
+					<div class="page-navigation">
+						<button type="button" class="button button-secondary" data-previous aria-label="Previous page">←</button><label class="sr-only" for="reader-page">Current page</label>
+						<select id="reader-page" data-page>
+							for _,p:=range pages {
+								<option value={ strconv.Itoa(int(p.Number)) }>{ fmt.Sprintf("Page %d / %d",p.Number,len(pages)) }</option>
+							}
+						</select><button type="button" class="button button-secondary" data-next aria-label="Next page">→</button>
+					</div>
+					<p class="save-status" data-save-status role="status">Your place stays on this device</p>
+				</div>
+			</div>
+			<p class="reader-hint wrap" data-reader-controls hidden>Arrow keys turn pages · Home / End jump to the first / last page</p>
+			<p class="wrap reader-hint" data-reader-fallback>Continuous reading is available without JavaScript. Enable JavaScript to change reading mode and save your place.</p>
+			<div class="reader-pages" data-pages>
+				for i,p:=range pages {
+					<figure id={ fmt.Sprintf("page-%d", p.Number) } data-reader-page>
+						if i==0 {
+							<img src={ asset(p.Image) } data-image data-src={ asset(p.Image) } width={ strconv.Itoa(int(p.Width)) } height={ strconv.Itoa(int(p.Height)) } alt={ p.Transcript } fetchpriority="high" decoding="async"/>
+						} else {
+							<img src={ asset(p.Image) } data-image data-src={ asset(p.Image) } width={ strconv.Itoa(int(p.Width)) } height={ strconv.Itoa(int(p.Height)) } alt={ p.Transcript } loading="lazy" decoding="async"/>
+						}
+						<figcaption>{ fmt.Sprintf("%s · %d / %d",c.SeriesTitle,p.Number,len(pages)) }</figcaption>
+					</figure>
+				}
+			</div>
+			<div class="reader-end wrap"><p class="eyebrow">A good place to pause</p><h2>You’ve reached the last panel.</h2><p>Take the story with you. There’s another one on the shelf.</p><a class="button" href="/catalog">Discover another world →</a><p class="fine-print">{ c.Rights }</p></div>
+			<p class="sr-only" aria-live="polite" aria-atomic="true" data-page-announcement></p>
+		</main>
+	}
+}

@@ -1,0 +1,16 @@
+{
+  "datastar": {
+    "version": "1.0.4",
+    "source": "https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.4/bundles/datastar.js",
+    "sha256": "727844adfc825ee651fb93c544a2a739986f9a21820a94524b35f0cac470cf91"
+  },
+  "mannerhtml": {
+    "version": "0.3.0",
+    "source": "npm lockfile integrity; tabs, logic and shared only"
+  },
+  "shadcn": {
+    "commit": "b7074c1dc2cb669e916b3a51ddf8152eba356fa9",
+    "source": "components/button/button.templ",
+    "changes": "Native button branch only; reduced properties; Komanook CSS; no class merge runtime."
+  }
+}

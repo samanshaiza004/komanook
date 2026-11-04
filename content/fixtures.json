@@ -1,0 +1,125 @@
+[
+  {
+    "slug": "last-signal",
+    "title": "The Last Signal",
+    "creator": "Komanook Studio",
+    "genre": "Science fiction",
+    "format": "Manga",
+    "chapter": "Someone is still listening",
+    "synopsis": "Every night, a forgotten radio tower sends one note into the stars. Tonight, someone answers.",
+    "cover": "comics/last-signal-cover.webp",
+    "rights": "Original Komanook fixture · CC0 1.0",
+    "pages": [
+      {
+        "number": 1,
+        "image": "comics/last-signal-1.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 1. The tower had been quiet for a hundred years. Mira kept listening anyway. An illustrated radio tower above indigo mountains, a small figure listening beneath the stars."
+      },
+      {
+        "number": 2,
+        "image": "comics/last-signal-2.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 2. At 02:17, the sky answered. Not words. A single, trembling note. An illustrated radio tower above indigo mountains, a small figure listening beneath the stars."
+      },
+      {
+        "number": 3,
+        "image": "comics/last-signal-3.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 3. Mira turned the dial. “Are you still there?” The little light blinked twice. An illustrated radio tower above indigo mountains, a small figure listening beneath the stars."
+      },
+      {
+        "number": 4,
+        "image": "comics/last-signal-4.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 4. Somewhere beyond the clouds, another room lit up. For the first time, neither of them was alone. An illustrated radio tower above indigo mountains, a small figure listening beneath the stars."
+      }
+    ]
+  },
+  {
+    "slug": "between-tides",
+    "title": "Between the Tides",
+    "creator": "Komanook Studio",
+    "genre": "Slice of life",
+    "format": "Webcomic",
+    "chapter": "What the sea brings back",
+    "synopsis": "A seaside repair shop. A box of unsent letters. Some things find their way home with the tide.",
+    "cover": "comics/between-tides-cover.webp",
+    "rights": "Original Komanook fixture · CC0 1.0",
+    "pages": [
+      {
+        "number": 1,
+        "image": "comics/between-tides-1.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 1. Every morning, Nao swept the sea out of the shop. Every evening, it left something behind. An illustrated seaside cottage and lighthouse beside rolling green waves."
+      },
+      {
+        "number": 2,
+        "image": "comics/between-tides-2.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 2. Today it was a tin full of letters. None had a stamp. All said: “To you.” An illustrated seaside cottage and lighthouse beside rolling green waves."
+      },
+      {
+        "number": 3,
+        "image": "comics/between-tides-3.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 3. “I think these belong to the lighthouse.” Grandmother smiled. “I wondered when they would arrive.” An illustrated seaside cottage and lighthouse beside rolling green waves."
+      },
+      {
+        "number": 4,
+        "image": "comics/between-tides-4.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 4. They read them while the kettle sang. Outside, the tide began its long journey home. An illustrated seaside cottage and lighthouse beside rolling green waves."
+      }
+    ]
+  },
+  {
+    "slug": "orbit-post",
+    "title": "Orbit Post",
+    "creator": "Komanook Studio",
+    "genre": "Adventure",
+    "format": "Manhwa",
+    "chapter": "One very small delivery",
+    "synopsis": "The smallest courier in the solar system has a very important package. The address? A moving moon.",
+    "cover": "comics/orbit-post-cover.webp",
+    "rights": "Original Komanook fixture · CC0 1.0",
+    "pages": [
+      {
+        "number": 1,
+        "image": "comics/orbit-post-1.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 1. Package 44. One small seed. Destination: the moon that never stays still. An illustrated tiny rocket approaching a ringed moon."
+      },
+      {
+        "number": 2,
+        "image": "comics/orbit-post-2.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 2. Pip checked the map. Then the sky. The moon was already late for tomorrow. An illustrated tiny rocket approaching a ringed moon."
+      },
+      {
+        "number": 3,
+        "image": "comics/orbit-post-3.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 3. “Special delivery!” A tiny door opened in a very large crater. An illustrated tiny rocket approaching a ringed moon."
+      },
+      {
+        "number": 4,
+        "image": "comics/orbit-post-4.webp",
+        "width": 1000,
+        "height": 1400,
+        "transcript": "Page 4. The seed found a home in the moon dust. And the moon finally had a reason to stop. An illustrated tiny rocket approaching a ringed moon."
+      }
+    ]
+  }
+]

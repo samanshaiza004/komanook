@@ -1,0 +1,29 @@
+{
+  "name": "komanook",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "assets": "node scripts/assets.mjs && tailwindcss -i internal/web/styles.css -o internal/web/static/app.css --minify",
+    "art": "node scripts/assets.mjs --art && npm run assets",
+    "licenses": "node scripts/licenses.mjs",
+    "test:browser": "playwright test",
+    "test:local": "node scripts/local.mjs test",
+    "dev:local": "node scripts/local.mjs dev",
+    "bench": "node scripts/benchmark.mjs",
+    "lint": "node --check internal/web/static/reader.js && node --check internal/web/static/app.js && prettier --check 'scripts/*.mjs' 'tests/browser/*.js' 'internal/web/static/*.js' playwright.config.js",
+    "format": "prettier --write 'scripts/*.mjs' 'tests/browser/*.js' 'internal/web/static/*.js' playwright.config.js"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.11.1",
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/cli": "4.3.4",
+    "embedded-postgres": "18.6.0-beta.19",
+    "mannerhtml": "0.3.0",
+    "prettier": "3.6.2",
+    "sharp": "0.35.5",
+    "tailwindcss": "4.3.4"
+  }
+}

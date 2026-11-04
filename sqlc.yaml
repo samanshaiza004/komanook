@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: db/migrations/000001_foundation.up.sql
+    queries: db/queries
+    gen:
+      go:
+        package: store
+        out: internal/database/store
+        sql_package: pgx/v5
+        emit_empty_slices: true

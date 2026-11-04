@@ -1,0 +1,8 @@
+.git
+.data
+node_modules
+bin
+test-results
+playwright-report
+.env
+*.log
